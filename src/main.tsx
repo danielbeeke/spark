@@ -1,9 +1,9 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import Pokemon from './Pokemon.tsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import PokemonList from "./PokemonList";
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Pokemon />
-  </StrictMode>,
-)
+    <PokemonList />
+  </StrictMode>
+);
