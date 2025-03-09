@@ -1,7 +1,4 @@
 import { triplyPatternTypes, triplyPatternsGrouped } from "../spark-generated";
-import { Parser, Generator, SelectQuery } from "sparqljs";
-import { nonNullable } from "./nonNullable";
-import dataFactory from "@rdfjs/data-model";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
 
@@ -17,15 +14,8 @@ type QueryOptions = {
   offset?: number;
 };
 
-export const Spark = ({ prefixes, endpoint }: SparkOptions) => {
-  const parser = new Parser();
-  const generator = new Generator();
+export const Spark = ({ endpoint }: SparkOptions) => {
   const cachedFetch = CachedFetch();
-
-  const prefixesString = Object.entries(prefixes)
-    .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
-    .join("\n");
-
   const promises: Map<string, Promise<any>> = new Map();
 
   return {
@@ -40,39 +30,17 @@ export const Spark = ({ prefixes, endpoint }: SparkOptions) => {
         if (!(groupingName in triplyPatternsGrouped))
           throw new Error("Could not find the query");
 
-        const templateQuery = "select * where {}";
-        const mergedQuery = parser.parse(templateQuery) as SelectQuery;
+        let query = triplyPatternsGrouped[groupingName];
+        const { orderBy, orderDirection = 'asc', limit, offset } = queryOptions ?? {};
 
-        const partialQueries = triplyPatternsGrouped[groupingName].map(
-          (triplyPattern) => {
-            const query = `${prefixesString} select * where { ${triplyPattern} }`;
-            return parser.parse(query);
-          }
-        ) as SelectQuery[];
-
-        mergedQuery.prefixes = prefixes;
-        mergedQuery.where = partialQueries
-          .flatMap((partialQuery) => partialQuery.where)
-          .filter(nonNullable);
-
-        const { orderBy, orderDirection, limit, offset } = queryOptions ?? {};
-
-        if (orderBy) {
-          mergedQuery.order = [
-            {
-              expression: dataFactory.variable(orderBy),
-              descending: orderDirection === "desc",
-            },
-          ];
-        }
-        if (limit !== undefined) mergedQuery.limit = limit;
-        if (offset !== undefined) mergedQuery.offset = offset;
-
-        const queryString = generator.stringify(mergedQuery);
+        if (orderBy)
+          query = query.replace("#orderBy", `order by ${orderDirection}(${orderBy})`);
+        if (limit !== undefined) query = query.replace('#limit', `limit ${limit}`)
+        if (offset !== undefined) query = query.replace('#offset', `offset ${offset}`)
 
         // Execute the mergedQuery via the cached fetch.
         const url = new URL(endpoint);
-        url.searchParams.set("query", queryString);
+        url.searchParams.set("query", query);
 
         const promise = cachedFetch(url, {
           headers: {
@@ -99,9 +67,7 @@ export const Spark = ({ prefixes, endpoint }: SparkOptions) => {
 
         promises.set(groupingName, promise);
       }
-      return {
-        items: use(promises.get(groupingName)!) as triplyPatternTypes[T][],
-      };
+      return use(promises.get(groupingName)!) as triplyPatternTypes[T][]
     },
   };
 };

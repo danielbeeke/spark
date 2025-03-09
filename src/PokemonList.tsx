@@ -2,9 +2,10 @@ import Pokemon from "./Pokemon"
 import { useSpark } from "./spark"
 
 export default function PokemonList () {
-    const { items } = useSpark('$pokemon rdf:type vocab:Pokémon', {
-        limit: 10
+    const pokemons = useSpark('$pokemon rdf:type vocab:Pokémon', {
+        limit: 10,
+        orderBy: '$pokemon'
     })
 
-    return items.map((item) => <Pokemon key={item.pokemon} {...item} />)
+    return pokemons.map(pokemon => <Pokemon key={pokemon.pokemon} {...pokemon} />)
 }
