@@ -28,7 +28,10 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
       const groupingName = triplePattern
         .split(" ")[0]
         .substring(1) as keyof typeof triplePatternsGrouped;
-      if (!promises.has(groupingName)) {
+
+      const cid = groupingName + JSON.stringify(queryOptions)
+
+      if (!promises.has(cid)) {
         if (!(groupingName in triplePatternsGrouped))
           throw new Error("Could not find the query");
 
@@ -43,8 +46,6 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
         // Execute the mergedQuery via the cached fetch.
         const url = new URL(endpoint);
         url.searchParams.set("query", query);
-
-        console.log(query)
 
         const promise = cachedFetch(url, {
           headers: {
@@ -69,9 +70,9 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
               )
           );
 
-        promises.set(groupingName, promise);
+        promises.set(cid, promise);
       }
-      return use(promises.get(groupingName)!) as triplePatternTypes[T][]
+      return use(promises.get(cid)!) as triplePatternTypes[T][]
     },
   };
 };
