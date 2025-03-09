@@ -74,6 +74,14 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
   return {
     endpoint,
     prefixes,
+    /**
+     * In this PoC we can only fetch things if the predicate only exists once for the subject.
+     * When there are multiple objects we can complete duplicate bindings except for that one object.
+     * This is logical and inherit to RDF.
+     * 
+     * Maybe we can use group_concat. Don't know, should be fixed, how to signal the cardinality?.
+     * We don't have shapes and that is kind of cool. Could we encode it in the triple patterns? 
+     */
     useSpark: <T extends keyof triplePatternTypes>(
       triplePattern: T,
       queryOptions?: QueryOptions
@@ -83,6 +91,7 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
         endpoint,
         // You can use the useSpark where you want to execute the promise and 
         // where you only want to statically signal something must be used.
+        // For that reason we lazely executed the fetch.
         get items(): triplePatternTypes[T][] {
           const groupingName = triplePattern
             .split(" ")[0]

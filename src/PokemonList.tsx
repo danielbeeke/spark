@@ -6,7 +6,7 @@ export default function PokemonList() {
   const [limit, setLimit] = useState(10);
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
-  const { items: pokemons } = useSpark("$pokemon rdf:type vocab:Pokémon", {
+  const { items: pokemons } = useSpark(`$pokemon rdf:type vocab:Pokémon`, {
     limit,
     orderDirection,
   });

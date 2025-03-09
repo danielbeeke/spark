@@ -9,7 +9,7 @@ type Options = {
   output: string;
 };
 
-const regex = new RegExp(/useSpark\(['"`](.[^'"`]*)['"`]/gms);
+const regex = new RegExp(/useSpark\([`](.[^`]*)[`]/gms);
 
 const getTriplePatterns = async (options: Options) => {
   const files = await fs.promises.readdir(options.root, {

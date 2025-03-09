@@ -5,7 +5,7 @@ export type Pokemon = {
 }
 
 export type triplePatternTypes = {
-  [`$pokemon rdfs:label ?label`]: Pokemon;
+  [`$pokemon rdfs:label ?label.`]: Pokemon;
   [`$pokemon foaf:depiction ?image`]: Pokemon;
   [`$pokemon rdf:type vocab:Pokémon`]: Pokemon;
 };
