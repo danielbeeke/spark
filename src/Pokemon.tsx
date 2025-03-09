@@ -1,11 +1,16 @@
+import PokemonImage from "./PokemonImage.js"
 import type { Pokemon } from "./spark-generated"
-import { useSpark } from "./spark"
+import { useSpark } from "./spark.js"
 
-export default function Pokemon ({ label, pokemon }: Pokemon) {
-    useSpark('$pokemon rdfs:label ?label')
+export default function Pokemon (pokemon: Pokemon) {
+    useSpark(`$pokemon rdfs:label ?label`)
 
     return <div>
-        <h2>{label}</h2>
-        <em>{pokemon}</em>
+        <div>
+            <h2>{pokemon.label}</h2>
+            <em>{pokemon.pokemon}</em>
+        </div>
+
+        <PokemonImage {...pokemon} />
     </div>
 }

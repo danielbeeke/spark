@@ -14,11 +14,13 @@ type QueryOptions = {
   offset?: number;
 };
 
-export const Spark = ({ endpoint }: SparkOptions) => {
+export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
   const cachedFetch = CachedFetch();
   const promises: Map<string, Promise<any>> = new Map();
 
   return {
+    endpoint,
+    prefixes,
     useSpark: <T extends keyof triplePatternTypes>(
       triplePattern: T,
       queryOptions?: QueryOptions
@@ -41,6 +43,8 @@ export const Spark = ({ endpoint }: SparkOptions) => {
         // Execute the mergedQuery via the cached fetch.
         const url = new URL(endpoint);
         url.searchParams.set("query", query);
+
+        console.log(query)
 
         const promise = cachedFetch(url, {
           headers: {

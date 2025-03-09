@@ -7,13 +7,38 @@ An experiment to have decoupled React components driven by SPARQL fragments that
 We can write SPARQL fragments like a basic graph pattern.
 The variable name of the subject is used to group things together:
 
-So: `$pokemon rdf:type vocab:Pokémon` and `$pokemon rdfs:label ?label` will be merged into:
+```TypeScript
+export default function PokemonList () {
+    const pokemons = useSpark('$pokemon rdf:type vocab:Pokémon', {
+        limit: 10,
+        orderBy: '$pokemon'
+    })
+
+    return pokemons.map(pokemon => <Pokemon key={pokemon.pokemon} {...pokemon} />)
+}
+```
+
+```TypeScript
+export default function Pokemon ({ label, pokemon }: Pokemon) {
+    useSpark('$pokemon rdfs:label ?label')
+
+    return <div>
+        <h2>{label}</h2>
+        <em>{pokemon}</em>
+    </div>
+}
+```
+
+Together become:
 
 ```sparql
 SELECT * WHERE {
   ?pokemon rdfs:label ?label.
   ?pokemon a vocab:Pokémon.
 }
+order by $pokemon
+limit 10
 ```
 
-A context is used to make the decoupling possible. Every component by default is executed multiple times, when the context has an index we now we need the specific bindings for that index and not the whole list.
+The tool also generates types that are used inside useSpark and the developer can reuse these for easy development.
+Removing a triply pattern will show all the places where that binding was used.
