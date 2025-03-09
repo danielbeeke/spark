@@ -9,4 +9,7 @@ export default defineConfig({
     root: './src',
     output: './src/spark-generated.ts'
   })],
+  build: {
+    outDir: 'docs'
+  }
 })

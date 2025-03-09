@@ -1,5 +1,5 @@
 import fs from "fs";
-import { Parser, Query, Generator, SelectQuery, Term } from "sparqljs";
+import { Parser, Generator, SelectQuery, Term } from "sparqljs";
 import { nonNullable } from "./src/lib/nonNullable";
 import { capitalize } from "lodash-es";
 
