@@ -11,5 +11,6 @@ export default defineConfig({
   })],
   build: {
     outDir: 'docs'
-  }
+  },
+  base: 'https://danielbeeke.nl/spark/'
 })
