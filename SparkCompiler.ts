@@ -1,7 +1,7 @@
 import fs from "fs";
 import { Parser, Generator, SelectQuery, Term } from "sparqljs";
 import { nonNullable } from "./src/lib/nonNullable";
-import { capitalize } from "lodash-es";
+import { capitalize, uniq } from "lodash-es";
 
 type Options = {
   entry: string;
@@ -11,14 +11,32 @@ type Options = {
 
 const regex = new RegExp(/useSpark\(['"`](.[^'"`]*)['"`]/gms);
 
-const sparkGenerate = async (options: Options) => {
-  // For this PoC there are quite some limitations on how you can use Spark.
-  let output = ''
-  let triplePatternTypes = 'export type triplePatternTypes = {\n'
-  const parser = new Parser();
-  const generator = new Generator();
-  const mergedQueries: Map<string, string> = new Map();
-  const partials: Map<string, SelectQuery[]> = new Map();
+const getTriplePatterns = async (options: Options) => {
+  const files = await fs.promises.readdir(options.root, {
+    recursive: true,
+  });
+
+  const triplePatterns: string[] = [];
+
+  for (const file of files) {
+    const path = `${import.meta.dirname}/${options.root}/${file}`;
+    const stats = await fs.promises.stat(path);
+    if (!stats.isFile()) continue;
+
+    const contents = await fs.promises.readFile(
+      `${import.meta.dirname}/${options.root}/${file}`,
+      "utf8"
+    );
+    if (contents.includes("useSpark")) {
+      const matches = contents.matchAll(regex);
+      for (const match of matches) triplePatterns.push(match[1]);
+    }
+  }
+
+  return triplePatterns;
+};
+
+const getPrefixes = async (options: Options) => {
   const entryContents = await fs.promises.readFile(
     `${import.meta.dirname}/${options.entry}`,
     "utf8"
@@ -32,80 +50,114 @@ const sparkGenerate = async (options: Options) => {
     "data:text/javascript;base64," + btoa(spark + entryContentsCleaned);
   const entry = await import(b64moduleData);
   const { prefixes } = entry.default;
+  return prefixes;
+};
+
+const createFragmentType = (triplePatterns: string[]) => {
+  return `export type triplePatternTypes = {\n${triplePatterns
+    .map((triplePattern) => {
+      const groupingName = triplePattern.split(" ")[0].substring(1);
+      return `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`;
+    })
+    .join("\n")}\n};`;
+};
+
+const createClassTypes = (
+  groupingNames: string[],
+  triplePatterns: string[],
+  prefixes: Record<string, string>
+) => {
+  const prefixesString = Object.entries(prefixes)
+  .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
+  .join("\n");
+  const parser = new Parser();
+
+  return groupingNames
+    .map((groupingName) => {
+      const groupingTriplePatterns = triplePatterns.filter((triplePattern) => {
+        const innerGroupingName = triplePattern.split(" ")[0].substring(1);
+        return innerGroupingName === groupingName;
+      });
+
+      const variables = uniq(groupingTriplePatterns.flatMap(triplePattern => {
+        const finalQuery = `${prefixesString} select * where { ${triplePattern} }`;
+        const parsedQuery = parser.parse(finalQuery) as SelectQuery;
+        return parsedQuery.where?.flatMap(where => {
+          return where.type === 'bgp' ? where.triples : []
+        }).flatMap((pattern) => [
+          pattern.subject,
+          pattern.predicate,
+          pattern.object,
+        ])
+        .filter((term) => (term as Term).termType === "Variable")
+        .map((variable) => (variable as Term).value)
+      }))
+
+      return `export type ${capitalize(groupingName)} = {\n${variables.map((variable) => `  ${variable}: string;`).join("\n")}\n}`;
+    })
+    .join("\n");
+};
+
+const createClassQueries = (
+  groupingNames: string[],
+  triplePatterns: string[],
+  prefixes: Record<string, string>
+) => {
+  const parser = new Parser();
+  const generator = new Generator();
   const prefixesString = Object.entries(prefixes)
     .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
     .join("\n");
 
-  const files = await fs.promises.readdir(options.root, {
-    recursive: true,
-  });
+  const queries = Object.fromEntries(
+    groupingNames.map((groupingName) => {
+      const fragmentWheres = triplePatterns
+        .filter((triplePattern) => {
+          const innerGroupingName = triplePattern.split(" ")[0].substring(1);
+          return innerGroupingName === groupingName;
+        })
+        .flatMap((triplePattern) => {
+          const finalQuery = `${prefixesString} select * where { ${triplePattern} }`;
+          const parsedQuery = parser.parse(finalQuery) as SelectQuery;
+          return parsedQuery.where;
+        });
 
-  const triplePatterns: string[] = [];
+      const mergedQuery = parser.parse(
+        `${prefixesString} select * where {}`
+      ) as SelectQuery;
+      mergedQuery.where = fragmentWheres.filter(nonNullable);
 
-  for (const file of files) {
-    const path = `${import.meta.dirname}/${options.root}/${file}`;
-    const stats = await fs.promises.stat(path);
-    if (stats.isFile()) {
-      const contents = await fs.promises.readFile(
-        `${import.meta.dirname}/${options.root}/${file}`,
-        "utf8"
-      );
-      if (contents.includes("useSpark")) {
-        const matches = contents.matchAll(regex);
-          for (const match of matches) {
-            triplePatterns.push(match[1]);
-          }
-      }
+      return [groupingName, generator.stringify(mergedQuery) + `\n#orderBy\n#limit\n#offset`];
+    })
+  );
+
+  return `export const triplePatternsGrouped = {\n${Object.entries(queries).map(
+    ([name, query]) => {
+      const indentedQuery = query
+        .split("\n")
+        .map((line) => `    ${line}`)
+        .join("\n");
+      return `  ${name}:\`\n${indentedQuery}\`,`;
     }
-  }
+  )}\n}`;
+};
 
-  for (const triplePattern of triplePatterns) {
-    const groupingName = triplePattern.split(" ")[0].substring(1);
+const sparkGenerate = async (options: Options) => {
+  const triplePatterns = await getTriplePatterns(options);
+  const prefixes = await getPrefixes(options);
+  const groupingNames = [
+    ...new Set(
+      triplePatterns.map((triplePattern) =>
+        triplePattern.split(" ")[0].substring(1)
+      )
+    ),
+  ];
 
-    triplePatternTypes += `  [\`${triplePattern}\`]: ${capitalize(groupingName)};\n`
-
-    if (!partials.has(groupingName)) partials.set(groupingName, []);
-    const subjectPartials = partials.get(groupingName)!;
-
-    const finalQuery = `${prefixesString} select * where { ${triplePattern} }`;
-    const parsedQuery = parser.parse(finalQuery) as SelectQuery;
-    subjectPartials.push(parsedQuery);
-  }
-
-  triplePatternTypes += '};\n\n'
-  output += triplePatternTypes + 'export const triplePatternsGrouped = {\n'
-
-  for (const [groupingName, subjectPartials] of partials.entries()) {
-    const mergedQuery = parser.parse(
-      `${prefixesString} select * where {}`
-    ) as SelectQuery;
-    mergedQuery.where = subjectPartials
-      .flatMap((subjectPartial) => subjectPartial.where)
-      .filter(nonNullable);
-    mergedQueries.set(groupingName, generator.stringify(mergedQuery));
-
-    output += `${groupingName}: \`${generator.stringify(mergedQuery)}\n#orderBy\n#limit\n#offset\`,`
-
-    const triplePatterns = mergedQuery.where.flatMap((wherePart) =>
-      wherePart.type === "bgp" ? wherePart.triples : []
-    );
-    const variables = [
-      ...new Set(
-        triplePatterns
-          .flatMap((pattern) => [
-            pattern.subject,
-            pattern.predicate,
-            pattern.object,
-          ])
-          .filter((term) => (term as Term).termType === "Variable")
-          .map((variable) => (variable as Term).value)
-      ),
-    ];
-
-    output += `\n}\n\nexport type ${capitalize(groupingName)} = {
-${variables.map(variable => `  ${variable}: string`).join('\n')}
-}\n`
-  }
+  const output = [
+    createClassTypes(groupingNames, triplePatterns, prefixes),
+    createFragmentType(triplePatterns),
+    createClassQueries(groupingNames, triplePatterns, prefixes),
+  ].join("\n\n");
 
   await fs.promises.writeFile( `${import.meta.dirname}/${options.output}`, output, 'utf8')
 };
@@ -118,8 +170,8 @@ export default function SparkCompiler(options: Options) {
       await sparkGenerate(options);
     },
 
-    async handleHotUpdate () {
+    async handleHotUpdate() {
       await sparkGenerate(options);
-    }
+    },
   };
 }

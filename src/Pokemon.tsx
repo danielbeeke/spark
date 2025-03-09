@@ -5,12 +5,8 @@ import { useSpark } from "./spark.js"
 export default function Pokemon (pokemon: Pokemon) {
     useSpark(`$pokemon rdfs:label ?label`)
 
-    return <div>
-        <div>
-            <h2>{pokemon.label}</h2>
-            <em>{pokemon.pokemon}</em>
-        </div>
-
+    return <div className="pokemon">
+        <h2>{pokemon.label}</h2>
         <PokemonImage {...pokemon} />
     </div>
 }
