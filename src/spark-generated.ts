@@ -2,12 +2,12 @@
 
 export type Pokemon = { pokemon: string; label: string };
 
-export type triplyPatternTypes = {
+export type triplePatternTypes = {
   [`$pokemon rdf:type vocab:Pokémon`]: Pokemon;
   [`$pokemon rdfs:label ?label`]: Pokemon;
 };
 
-export const triplyPatternsGrouped = {
+export const triplePatternsGrouped = {
   pokemon: `
     prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     prefix vocab: <https://triplydb.com/academy/pokemon/vocab/>

@@ -1,4 +1,4 @@
-import { triplyPatternTypes, triplyPatternsGrouped } from "../spark-generated";
+import { triplePatternTypes, triplePatternsGrouped } from "../spark-generated";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
 
@@ -19,18 +19,18 @@ export const Spark = ({ endpoint }: SparkOptions) => {
   const promises: Map<string, Promise<any>> = new Map();
 
   return {
-    useSpark: <T extends keyof triplyPatternTypes>(
+    useSpark: <T extends keyof triplePatternTypes>(
       triplePattern: T,
       queryOptions?: QueryOptions
     ) => {
       const groupingName = triplePattern
         .split(" ")[0]
-        .substring(1) as keyof typeof triplyPatternsGrouped;
+        .substring(1) as keyof typeof triplePatternsGrouped;
       if (!promises.has(groupingName)) {
-        if (!(groupingName in triplyPatternsGrouped))
+        if (!(groupingName in triplePatternsGrouped))
           throw new Error("Could not find the query");
 
-        let query = triplyPatternsGrouped[groupingName];
+        let query = triplePatternsGrouped[groupingName];
         const { orderBy, orderDirection = 'asc', limit, offset } = queryOptions ?? {};
 
         if (orderBy)
@@ -67,7 +67,7 @@ export const Spark = ({ endpoint }: SparkOptions) => {
 
         promises.set(groupingName, promise);
       }
-      return use(promises.get(groupingName)!) as triplyPatternTypes[T][]
+      return use(promises.get(groupingName)!) as triplePatternTypes[T][]
     },
   };
 };
