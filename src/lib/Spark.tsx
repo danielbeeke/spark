@@ -35,7 +35,12 @@ const createPromise = ({
     throw new Error("Could not find the query");
 
   let query = triplePatternsGrouped[groupingName];
-  const { orderBy, orderDirection = "asc", limit, offset } = queryOptions ?? {};
+  const {
+    orderBy = `$${groupingName}`,
+    orderDirection = "asc",
+    limit,
+    offset,
+  } = queryOptions ?? {};
 
   if (orderBy)
     query = query.replace("#orderBy", `order by ${orderDirection}(${orderBy})`);
@@ -73,22 +78,31 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
       triplePattern: T,
       queryOptions?: QueryOptions
     ) => {
-      const groupingName = triplePattern
-        .split(" ")[0]
-        .substring(1) as keyof typeof triplePatternsGrouped;
+      return {
+        prefixes,
+        endpoint,
+        // You can use the useSpark where you want to execute the promise and 
+        // where you only want to statically signal something must be used.
+        get items(): triplePatternTypes[T][] {
+          const groupingName = triplePattern
+            .split(" ")[0]
+            .substring(1) as keyof typeof triplePatternsGrouped;
 
-      const cid = groupingName + JSON.stringify(queryOptions);
+          const cid = groupingName + JSON.stringify(queryOptions);
 
-      if (!promises.has(cid)) {
-        const promise = createPromise({
-          cachedFetch,
-          endpoint,
-          queryOptions,
-          groupingName,
-        });
-        promises.set(cid, promise);
-      }
-      return use(promises.get(cid)!) as triplePatternTypes[T][];
+          if (!promises.has(cid)) {
+            const promise = createPromise({
+              cachedFetch,
+              endpoint,
+              queryOptions,
+              groupingName,
+            });
+            promises.set(cid, promise);
+          }
+
+          return use(promises.get(cid)!);
+        },
+      };
     },
   };
 };

@@ -7,9 +7,9 @@ const spark = Spark({
     vocab: "https://triplydb.com/academy/pokemon/vocab/",
     rdfs: "http://www.w3.org/2000/01/rdf-schema#",
     foaf: "http://xmlns.com/foaf/0.1/",
-    schema: "http://schema.org/"
+    schema: "http://schema.org/",
   },
 });
 
-export const useSpark = spark.useSpark
-export default spark
+export const useSpark = spark.useSpark;
+export default spark;
