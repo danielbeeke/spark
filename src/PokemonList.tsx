@@ -1,26 +1,10 @@
-import { useList } from "./lib/Spark.tsx";
-import Pokemon from "./Pokemon.tsx";
+import Pokemon from "./Pokemon"
+import { useSpark } from "./spark"
 
-export default function PokemonList() {
-  const { limit, setLimit } = useList({
-    for: "pokemon",
-    limit: 10,
-    orderBy: "label",
-  });
+export default function PokemonList () {
+    const { items } = useSpark('$pokemon rdf:type vocab:Pokémon', {
+        limit: 10
+    })
 
-  return (
-    <div className="all-pokemon">
-      <span>
-        Showing{" "}
-        <input
-          type="number"
-          value={limit}
-          onChange={(event) => setLimit(parseInt(event.target.value))}
-          min={1}
-        />
-        {limit} pokemons
-      </span>
-      <Pokemon />
-    </div>
-  );
+    return items.map((item) => <Pokemon key={item.pokemon} {...item} />)
 }

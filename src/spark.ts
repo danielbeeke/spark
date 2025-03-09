@@ -1,6 +1,6 @@
 import { Spark } from "./lib/Spark";
 
-export const spark = Spark({
+export const { useSpark } = Spark({
   endpoint: `https://api.triplydb.com/datasets/academy/pokemon/services/jena/sparql`,
   prefixes: {
     rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",

@@ -1,177 +1,107 @@
-import {
-  createContext,
-  JSX,
-  lazy,
-  LazyExoticComponent,
-  Suspense,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-import { queries } from "../types";
-import { Parser, Query, Generator } from "sparqljs";
-import { CachedFetch } from "./CachedFetch";
+import { triplyPatternTypes, triplyPatternsGrouped } from "../spark-generated";
+import { Parser, Generator, SelectQuery } from "sparqljs";
 import { nonNullable } from "./nonNullable";
+import dataFactory from "@rdfjs/data-model";
+import { CachedFetch } from "./CachedFetch";
+import { use } from "react";
 
 type SparkOptions = {
   endpoint: string;
   prefixes: Record<string, string>;
 };
 
-const sparkContext = createContext<{ groupingName?: string; index?: number }>(
-  {}
-);
-
-type PaginationAndOrder = {
-  for: string
+type QueryOptions = {
   orderBy?: string;
   orderDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
-}
+};
 
-export function Spark({ endpoint, prefixes }: SparkOptions) {
-  // Scoped to this Spark instance.
-  const cachedFetch = CachedFetch();
+export const Spark = ({ prefixes, endpoint }: SparkOptions) => {
   const parser = new Parser();
   const generator = new Generator();
-  const partials: Map<string, Query[]> = new Map();
-  const mergedQueries: Map<string, string> = new Map();
+  const cachedFetch = CachedFetch();
 
-  return function spark<Query extends keyof queries>(
-    query: Query,
-    Component: (props: queries[Query]) => JSX.Element,
-  ): LazyExoticComponent<any> {
-    // Registration phase
-    const prefixesString = Object.entries(prefixes)
-      .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
-      .join("\n");
+  const prefixesString = Object.entries(prefixes)
+    .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
+    .join("\n");
 
-    const finalQuery = `${prefixesString} select * where { ${query} }`;
-
-    const parsedQuery = parser.parse(finalQuery);
-    if (parsedQuery.type !== "query")
-      throw new Error("Can not support update queries");
-    const firstPattern = parsedQuery?.where?.[0];
-    if (firstPattern?.type !== "bgp") throw new Error("Must be triples");
-
-    const groupingName = firstPattern.triples[0].subject.value;
-
-    if (!partials.has(groupingName)) partials.set(groupingName, []);
-    const subjectPartials = partials.get(groupingName)!;
-    subjectPartials.push(parsedQuery);
-
-    return lazy(async () => {
-      const paginationAndOrder: PaginationAndOrder = paginationAndOrderState.get(groupingName)
-
-      // Execution phase, piecing together the merged query.
-      if (!mergedQueries.has(groupingName)) {
-        const templateQuery = `
-          select * where {}
-          ${
-            paginationAndOrder?.orderBy !== undefined
-              ? `order by ${paginationAndOrder?.orderDirection ?? "asc"}(?${
-                  paginationAndOrder.orderBy
-                })`
-              : ""
-          }
-          ${
-            paginationAndOrder?.limit !== undefined
-              ? `limit ${paginationAndOrder.limit}`
-              : ""
-          }
-          ${
-            paginationAndOrder?.offset !== undefined
-              ? `offset ${paginationAndOrder.offset}`
-              : ""
-          }
-        `;
-        const mergedQuery = parser.parse(templateQuery);
-        if (mergedQuery.type !== "query")
-          throw new Error("Can not support update queries");
-        mergedQuery.where = subjectPartials
-          .flatMap((subjectPartial) => subjectPartial.where)
-          .filter(nonNullable);
-        mergedQueries.set(groupingName, generator.stringify(mergedQuery));
-      }
-
-      // Execute the mergedQuery via the cached fetch.
-      const url = new URL(endpoint);
-      url.searchParams.set("query", mergedQueries.get(groupingName)!);
-      const response = await cachedFetch(url, {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/sparql-results+json",
-        },
-      });
-
-      const data = await response.json();
-
-      return {
-        default: function () {
-
-          const localSparkContext = useContext(sparkContext);
-          const localBindings =
-            localSparkContext.index === undefined
-              ? data.results.bindings
-              : [data.results.bindings[localSparkContext.index]];
-
-          return (
-            <Suspense>
-              {localBindings.map(
-                (
-                  bindings: Record<string, { value: string }>,
-                  index: number
-                ) => (
-                  <sparkContext.Provider
-                    key={index + groupingName}
-                    value={{
-                      groupingName:
-                        localSparkContext.groupingName ?? groupingName,
-                      index: localSparkContext.index ?? index,
-                    }}
-                  >
-                    {/* @ts-ignore */}
-                    <Component
-                      key={index}
-                      {...Object.fromEntries(
-                        Object.entries(bindings).map(([key, value]) => [
-                          key,
-                          value.value,
-                        ])
-                      )}
-                    />
-                  </sparkContext.Provider>
-                )
-              )}
-            </Suspense>
-          );
-        },
-      };
-    });
-  };
-}
-
-const paginationAndOrderState = new Map()
-
-export const useList = (defaultPaginationAndOrder: PaginationAndOrder) => {
-  const [orderBy, setOrderBy] = useState(defaultPaginationAndOrder.orderBy)
-  const [orderDirection, setOrderDirection] = useState(defaultPaginationAndOrder.orderDirection ?? 'asc')
-  const [offset, setOffset] = useState(defaultPaginationAndOrder.offset ?? 0)
-  const [limit, setLimit] = useState(defaultPaginationAndOrder.limit ?? 10)
-
-  if (!paginationAndOrderState.has(defaultPaginationAndOrder.for)) {
-    paginationAndOrderState.set(defaultPaginationAndOrder.for, defaultPaginationAndOrder)
-  }
-
-  useEffect(() => {
-    return () => { paginationAndOrderState.delete(defaultPaginationAndOrder.for) }
-  }, [])
+  const promises: Map<string, Promise<any>> = new Map();
 
   return {
-    orderBy, setOrderBy,
-    orderDirection, setOrderDirection,
-    offset, setOffset,
-    limit, setLimit
-  }
-}
+    useSpark: <T extends keyof triplyPatternTypes>(
+      triplePattern: T,
+      queryOptions?: QueryOptions
+    ) => {
+      const groupingName = triplePattern
+        .split(" ")[0]
+        .substring(1) as keyof typeof triplyPatternsGrouped;
+      if (!promises.has(groupingName)) {
+        if (!(groupingName in triplyPatternsGrouped))
+          throw new Error("Could not find the query");
+
+        const templateQuery = "select * where {}";
+        const mergedQuery = parser.parse(templateQuery) as SelectQuery;
+
+        const partialQueries = triplyPatternsGrouped[groupingName].map(
+          (triplyPattern) => {
+            const query = `${prefixesString} select * where { ${triplyPattern} }`;
+            return parser.parse(query);
+          }
+        ) as SelectQuery[];
+
+        mergedQuery.prefixes = prefixes;
+        mergedQuery.where = partialQueries
+          .flatMap((partialQuery) => partialQuery.where)
+          .filter(nonNullable);
+
+        const { orderBy, orderDirection, limit, offset } = queryOptions ?? {};
+
+        if (orderBy) {
+          mergedQuery.order = [
+            {
+              expression: dataFactory.variable(orderBy),
+              descending: orderDirection === "desc",
+            },
+          ];
+        }
+        if (limit !== undefined) mergedQuery.limit = limit;
+        if (offset !== undefined) mergedQuery.offset = offset;
+
+        const queryString = generator.stringify(mergedQuery);
+
+        // Execute the mergedQuery via the cached fetch.
+        const url = new URL(endpoint);
+        url.searchParams.set("query", queryString);
+
+        const promise = cachedFetch(url, {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/sparql-results+json",
+          },
+        })
+          .then((response) => response.json())
+          .then(
+            (sparqlResponse: {
+              results: {
+                bindings: [Record<string, { value: string }>];
+              };
+            }) =>
+              sparqlResponse.results.bindings.map((binding) =>
+                Object.fromEntries(
+                  Object.entries(binding).map(([key, value]) => [
+                    key,
+                    value.value,
+                  ])
+                )
+              )
+          );
+
+        promises.set(groupingName, promise);
+      }
+      return {
+        items: use(promises.get(groupingName)!) as triplyPatternTypes[T][],
+      };
+    },
+  };
+};
