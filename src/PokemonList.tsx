@@ -5,13 +5,12 @@ import { useSpark } from "./spark.js";
 export default function PokemonList() {
   const [limit, setLimit] = useState(10);
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
   const { items: types } = useSpark(`
     $type rdfs:label $label . 
     filter(strstarts(str($type), str(id:)))
   `);
-
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
   const { items: pokemons } = useSpark(`
       $pokemon rdf:type vocab:Pokémon .
