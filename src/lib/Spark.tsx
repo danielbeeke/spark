@@ -1,4 +1,5 @@
-import { triplePatternTypes, triplePatternsGrouped } from "../spark-generated";
+import { fragmentTypes, queries, classMeta } from "../spark-generated";
+import { groupBy } from "lodash-es";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
 
@@ -20,6 +21,31 @@ type SparqlResponse = {
   };
 };
 
+const processBindings = (groupingName: string) => (sparqlResponse: SparqlResponse) => {
+  
+  const normalizedItems = sparqlResponse.results.bindings.map((binding) =>
+    Object.fromEntries(
+      Object.entries(binding).map(([key, value]) => [key, value.value])
+    )
+  );
+
+  const grouped = groupBy(normalizedItems, item => item[groupingName])
+  
+  const finalItems = []
+
+  for (const [iri, values] of Object.entries(grouped)) {
+    const item: any = {}
+    for (const [property, isPlural] of Object.entries(classMeta[groupingName as keyof typeof classMeta])) {
+      item[property] = isPlural ? values.map(value => value[property]) : values[0][property]
+    }
+    delete item[groupingName]
+    item.iri = iri
+    finalItems.push(item)
+  }
+
+  return finalItems
+};
+
 const createPromise = ({
   cachedFetch,
   groupingName,
@@ -27,14 +53,13 @@ const createPromise = ({
   endpoint,
 }: {
   cachedFetch: (typeof global)["fetch"];
-  groupingName: keyof typeof triplePatternsGrouped;
+  groupingName: keyof typeof queries;
   queryOptions?: QueryOptions;
   endpoint: string;
 }) => {
-  if (!(groupingName in triplePatternsGrouped))
-    throw new Error("Could not find the query");
+  if (!(groupingName in queries)) throw new Error("Could not find the query");
 
-  let query = triplePatternsGrouped[groupingName];
+  let query = queries[groupingName];
   const {
     orderBy = `$${groupingName}`,
     orderDirection = "asc",
@@ -51,6 +76,8 @@ const createPromise = ({
   const url = new URL(endpoint);
   url.searchParams.set("query", query);
 
+  console.log(query);
+
   return cachedFetch(url, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -58,13 +85,7 @@ const createPromise = ({
     },
   })
     .then((response) => response.json())
-    .then((sparqlResponse: SparqlResponse) =>
-      sparqlResponse.results.bindings.map((binding) =>
-        Object.fromEntries(
-          Object.entries(binding).map(([key, value]) => [key, value.value])
-        )
-      )
-    );
+    .then(processBindings(groupingName));
 };
 
 export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
@@ -78,24 +99,24 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
      * In this PoC we can only fetch things if the predicate only exists once for the subject.
      * When there are multiple objects we can complete duplicate bindings except for that one object.
      * This is logical and inherit to RDF.
-     * 
+     *
      * Maybe we can use group_concat. Don't know, should be fixed, how to signal the cardinality?.
-     * We don't have shapes and that is kind of cool. Could we encode it in the triple patterns? 
+     * We don't have shapes and that is kind of cool. Could we encode it in the triple patterns?
      */
-    useSpark: <T extends keyof triplePatternTypes>(
+    useSpark: <T extends keyof fragmentTypes>(
       triplePattern: T,
       queryOptions?: QueryOptions
     ) => {
       return {
         prefixes,
         endpoint,
-        // You can use the useSpark where you want to execute the promise and 
+        // You can use the useSpark where you want to execute the promise and
         // where you only want to statically signal something must be used.
-        // For that reason we lazely executed the fetch.
-        get items(): triplePatternTypes[T][] {
+        // For that reason we lazily executed the fetch.
+        get items(): fragmentTypes[T][] {
           const groupingName = triplePattern
             .split(" ")[0]
-            .substring(1) as keyof typeof triplePatternsGrouped;
+            .substring(1) as keyof typeof queries;
 
           const cid = groupingName + JSON.stringify(queryOptions);
 

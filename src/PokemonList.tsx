@@ -11,6 +11,8 @@ export default function PokemonList() {
     orderDirection,
   });
 
+  console.log(pokemons)
+
   return (
     <div>
       <input
