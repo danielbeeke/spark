@@ -2,6 +2,7 @@ import fs from "fs";
 import { Parser, Generator, SelectQuery, Term } from "sparqljs";
 import { nonNullable } from "./src/lib/nonNullable";
 import { capitalize, uniq } from "lodash-es";
+import dataFactory from "@rdfjs/data-model";
 
 type Options = {
   entry: string;
@@ -11,7 +12,18 @@ type Options = {
 
 const regex = new RegExp(/useSpark\([`](.[^`]*)[`]/gms);
 
-const getTriplePatterns = async (options: Options) => {
+type Meta = Record<
+  string,
+  {
+    triplePatterns: string[];
+    variables: Record<string, boolean>;
+  }
+>;
+
+const getTripleMeta = async (
+  options: Options,
+  prefixes: Record<string, string>
+): Promise<Meta> => {
   const files = await fs.promises.readdir(options.root, {
     recursive: true,
   });
@@ -33,7 +45,47 @@ const getTriplePatterns = async (options: Options) => {
     }
   }
 
-  return triplePatterns;
+  const groupingNames = uniq(
+    triplePatterns.map((triplePattern) =>
+      triplePattern.split(" ")[0].substring(1)
+    )
+  );
+
+  return Object.fromEntries(
+    groupingNames.map((groupingName) => {
+      const groupingTriplePatterns = triplePatterns.filter((triplePattern) => {
+        const innerGroupingName = triplePattern.split(" ")[0].substring(1);
+        return innerGroupingName === groupingName;
+      });
+
+      const variables = uniq(
+        groupingTriplePatterns.flatMap((triplePattern) =>
+          getVariablesFromTriplePattern(triplePattern, prefixes)
+        )
+      );
+
+      return [
+        groupingName,
+        {
+          triplePatterns: groupingTriplePatterns,
+          variables: Object.fromEntries(
+            variables.map((variable) => {
+              const isSingular = groupingTriplePatterns.some((triplePattern) =>
+                triplePattern.includes(`$${variable}`)
+              );
+              const isPlural = groupingTriplePatterns.some((triplePattern) =>
+                triplePattern.includes(`?${variable}`)
+              );
+              if ((!isSingular && !isPlural) || (isSingular && isPlural))
+                throw new Error("Unexpected");
+
+              return [variable, isPlural];
+            })
+          ),
+        },
+      ];
+    })
+  );
 };
 
 const getPrefixes = async (options: Options) => {
@@ -53,11 +105,15 @@ const getPrefixes = async (options: Options) => {
   return prefixes;
 };
 
-const createFragmentType = (triplePatterns: string[]) => {
-  return `export type fragmentTypes = {\n${triplePatterns
-    .map((triplePattern) => {
-      const groupingName = triplePattern.split(" ")[0].substring(1);
-      return `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`;
+const createFragmentType = (meta: Meta) => {
+  return `export type fragmentTypes = {\n${Object.entries(meta)
+    .map(([groupingName, classData]) => {
+      return classData.triplePatterns
+        .map(
+          (triplePattern) =>
+            `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`
+        )
+        .join("\n");
     })
     .join("\n")}\n};`;
 };
@@ -90,47 +146,21 @@ const getVariablesFromTriplePattern = (
   return variables;
 };
 
-const createClassTypes = (
-  groupingNames: string[],
-  triplePatterns: string[],
-  prefixes: Record<string, string>
-) => {
-  return groupingNames
-    .map((groupingName) => {
-      const groupingTriplePatterns = triplePatterns.filter((triplePattern) => {
-        const innerGroupingName = triplePattern.split(" ")[0].substring(1);
-        return innerGroupingName === groupingName;
-      });
-
-      const variables = uniq(
-        groupingTriplePatterns.flatMap((triplePattern) =>
-          getVariablesFromTriplePattern(triplePattern, prefixes)
-        )
-      );
-
-      return `export type ${capitalize(groupingName)} = {\n${variables
-        .map((variable) => {
-          const isSingular = groupingTriplePatterns.some((triplePattern) =>
-            triplePattern.includes(`$${variable}`)
-          );
-          const isPlural = groupingTriplePatterns.some((triplePattern) =>
-            triplePattern.includes(`?${variable}`)
-          );
-          if ((!isSingular && !isPlural) || (isSingular && isPlural))
-            throw new Error("Unexpected");
-
-          return `  ${variable}: string${isPlural ? "[]" : ""};`;
+const createClassTypes = (meta: Meta) => {
+  return Object.entries(meta)
+    .map(([groupingName, classData]) => {
+      return `export type ${capitalize(groupingName)} = {\n${Object.entries(
+        classData.variables
+      )
+        .map(([variable, isPlural]) => {
+          return `  ${variable === groupingName ? 'iri' : variable}: string${isPlural ? "[]" : ""};`;
         })
         .join("\n")}\n}`;
     })
     .join("\n");
 };
 
-const createClassQueries = (
-  groupingNames: string[],
-  triplePatterns: string[],
-  prefixes: Record<string, string>
-) => {
+const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
   const parser = new Parser();
   const generator = new Generator();
   const prefixesString = Object.entries(prefixes)
@@ -138,22 +168,44 @@ const createClassQueries = (
     .join("\n");
 
   const queries = Object.fromEntries(
-    groupingNames.map((groupingName) => {
-      const fragmentWheres = triplePatterns
-        .filter((triplePattern) => {
-          const innerGroupingName = triplePattern.split(" ")[0].substring(1);
-          return innerGroupingName === groupingName;
-        })
-        .flatMap((triplePattern) => {
-          const finalQuery = `${prefixesString} select * where { ${triplePattern} }`;
+    Object.entries(meta).map(([groupingName, classData]) => {
+      const fragmentWheres = classData.triplePatterns.flatMap(
+        (triplePattern) => {
+          let triplePatternRewritten = triplePattern;
+          for (const [variable, isPlural] of Object.entries(
+            classData.variables
+          )) {
+            if (!isPlural) continue;
+            triplePatternRewritten = triplePatternRewritten.replace(
+              `?${variable}`,
+              `?_${variable}`
+            );
+          }
+          const finalQuery = `${prefixesString} select * where { ${triplePatternRewritten} }`;
           const parsedQuery = parser.parse(finalQuery) as SelectQuery;
           return parsedQuery.where;
-        });
+        }
+      );
 
       const mergedQuery = parser.parse(
         `${prefixesString} select * where {}`
       ) as SelectQuery;
       mergedQuery.where = fragmentWheres.filter(nonNullable);
+      mergedQuery.variables = Object.entries(classData.variables)
+        .map(([variable, isPlural]) => (isPlural ? {
+          expression: {
+            expression: dataFactory.variable('_' + variable),
+            type: 'aggregate',
+            aggregation: "group_concat",
+            distinct: false,
+            separator: "|||",
+          },
+          variable: dataFactory.variable(variable)
+        } : dataFactory.variable(variable)));
+
+      mergedQuery.group = Object.entries(classData.variables)
+        .filter(([_variable, isPlural]) => !isPlural)
+        .map(([variable]) => ({ expression: dataFactory.variable(variable) }));
 
       return [
         groupingName,
@@ -173,61 +225,19 @@ const createClassQueries = (
   )}\n}`;
 };
 
-const createClassMeta = (
-  groupingNames: string[],
-  triplePatterns: string[],
-  prefixes: Record<string, string>
-) => {
-  return `export const classMeta = {\n${groupingNames
-    .map((groupingName) => {
-      const variables = [
-        ...new Set(
-          triplePatterns
-            .filter((triplePattern) => {
-              const innerGroupingName = triplePattern
-                .split(" ")[0]
-                .substring(1);
-              return innerGroupingName === groupingName;
-            })
-            .flatMap((triplePattern) =>
-              getVariablesFromTriplePattern(triplePattern, prefixes)
-            )
-        ),
-      ];
-
-      const properties = variables.map((variable) => {
-        const isSingular = triplePatterns.some((triplePattern) =>
-          triplePattern.includes(`$${variable}`)
-        );
-        const isPlural = triplePatterns.some((triplePattern) =>
-          triplePattern.includes(`?${variable}`)
-        );
-        if ((!isSingular && !isPlural) || (isSingular && isPlural))
-          throw new Error("Unexpected");
-        return `    ${variable}: ${isPlural},`;
-      }).join('\n');
-
-      return `  ${groupingName}: {\n${properties}\n  }`;
-    })
-    .join("\n")}\n}`;
+const createClassMeta = (meta: Meta) => {
+  return `export const classMeta = ${JSON.stringify(meta, null, 2)}`;
 };
 
 const sparkGenerate = async (options: Options) => {
-  const triplePatterns = await getTriplePatterns(options);
   const prefixes = await getPrefixes(options);
-  const groupingNames = [
-    ...new Set(
-      triplePatterns.map((triplePattern) =>
-        triplePattern.split(" ")[0].substring(1)
-      )
-    ),
-  ];
+  const meta = await getTripleMeta(options, prefixes);
 
   const output = [
-    createClassTypes(groupingNames, triplePatterns, prefixes),
-    createFragmentType(triplePatterns),
-    createClassQueries(groupingNames, triplePatterns, prefixes),
-    createClassMeta(groupingNames, triplePatterns, prefixes),
+    createClassTypes(meta),
+    createFragmentType(meta),
+    createClassQueries(meta, prefixes),
+    createClassMeta(meta),
   ].join("\n\n");
 
   await fs.promises.writeFile(

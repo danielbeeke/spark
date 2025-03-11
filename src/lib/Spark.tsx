@@ -1,5 +1,4 @@
 import { fragmentTypes, queries, classMeta } from "../spark-generated";
-import { groupBy } from "lodash-es";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
 
@@ -22,28 +21,16 @@ type SparqlResponse = {
 };
 
 const processBindings = (groupingName: string) => (sparqlResponse: SparqlResponse) => {
-  
-  const normalizedItems = sparqlResponse.results.bindings.map((binding) =>
+  return sparqlResponse.results.bindings.map((binding) =>
     Object.fromEntries(
-      Object.entries(binding).map(([key, value]) => [key, value.value])
+      Object.entries(binding).map(([key, value]) => {
+        const variables = classMeta[groupingName as keyof typeof classMeta].variables
+        const isPlural = variables[key as keyof typeof variables]
+        const preparedValue = isPlural ? value.value.split('|||') : value.value
+        return [key === groupingName ? 'iri' : key, preparedValue]
+      })
     )
   );
-
-  const grouped = groupBy(normalizedItems, item => item[groupingName])
-  
-  const finalItems = []
-
-  for (const [iri, values] of Object.entries(grouped)) {
-    const item: any = {}
-    for (const [property, isPlural] of Object.entries(classMeta[groupingName as keyof typeof classMeta])) {
-      item[property] = isPlural ? values.map(value => value[property]) : values[0][property]
-    }
-    delete item[groupingName]
-    item.iri = iri
-    finalItems.push(item)
-  }
-
-  return finalItems
 };
 
 const createPromise = ({

@@ -1,5 +1,5 @@
 export type Pokemon = {
-  pokemon: string;
+  iri: string;
   label: string;
   image: string;
   audio: string[];
@@ -19,22 +19,30 @@ export const queries = {
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     PREFIX schema: <http://schema.org/>
-    SELECT * WHERE {
+    SELECT ?pokemon ?label ?image (GROUP_CONCAT(?_audio; SEPARATOR = "|||") AS ?audio) WHERE {
       ?pokemon rdfs:label ?label.
       ?pokemon foaf:depiction ?image;
-        schema:audio ?audio.
+        schema:audio ?_audio.
       ?pokemon rdf:type <https://triplydb.com/academy/pokemon/vocab/Pokémon>.
     }
+    GROUP BY ?pokemon ?label ?image
     #orderBy
     #limit
     #offset`,
 }
 
 export const classMeta = {
-  pokemon: {
-    pokemon: false,
-    label: false,
-    image: false,
-    audio: true,
+  "pokemon": {
+    "triplePatterns": [
+      "$pokemon rdfs:label $label.",
+      "$pokemon \n    foaf:depiction $image ;\n    schema:audio ?audio",
+      "$pokemon rdf:type vocab:Pokémon"
+    ],
+    "variables": {
+      "pokemon": false,
+      "label": false,
+      "image": false,
+      "audio": true
+    }
   }
 }

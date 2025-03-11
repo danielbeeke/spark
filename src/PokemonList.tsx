@@ -31,7 +31,7 @@ export default function PokemonList() {
       </select>
 
       {pokemons.map((pokemon) => (
-        <Pokemon key={pokemon.pokemon} {...pokemon} />
+        <Pokemon key={pokemon.iri} {...pokemon} />
       ))}
     </div>
   );

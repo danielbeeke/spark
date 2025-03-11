@@ -45,9 +45,7 @@ Removing a triply pattern will show all the places where that binding was used.
 
 # Ideas
 
-- Use ? SPARQL variables to denote plural and $ to denote singular.
+- [x] Use ? SPARQL variables to denote plural and $ to denote singular.
 - Allow optional and propagate to the types.
-- Translate the subject variable always to `iri` and singular.
+- [x] Translate the subject variable always to `iri` and singular.
 - Allow filter() statically and also dynamically.
-- Reconsider the choice of using SPARQL fragments. Maybe something that mimics it gives more freedom.
-  - $subject rdfs:label? $label
