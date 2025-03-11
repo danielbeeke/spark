@@ -11,7 +11,6 @@ export type Options = {
   output: string;
 };
 
-
 const createFragmentType = (meta: Meta) => {
   return `export type fragmentTypes = {\n${Object.entries(meta)
     .map(([groupingName, classData]) => {
@@ -31,9 +30,9 @@ const createClassTypes = (meta: Meta) => {
       return `export type ${capitalize(groupingName)} = {\n${Object.entries(
         classData.variables
       )
-        .map(([variable, isPlural]) => {
-          return `  ${variable === groupingName ? "iri" : variable}: string${
-            isPlural ? "[]" : ""
+        .map(([variable, { plural, optional }]) => {
+          return `  ${variable === groupingName ? "iri" : variable}${optional ? '?' : ''}: string${
+            plural ? "[]" : ""
           };`;
         })
         .join("\n")}\n}`;
@@ -53,10 +52,10 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
       const fragmentWheres = classData.triplePatterns.flatMap(
         (triplePattern) => {
           let triplePatternRewritten = triplePattern;
-          for (const [variable, isPlural] of Object.entries(
+          for (const [variable, { plural }] of Object.entries(
             classData.variables
           )) {
-            if (!isPlural) continue;
+            if (!plural) continue;
             triplePatternRewritten = triplePatternRewritten.replace(
               `?${variable}`,
               `?_${variable}`
@@ -73,8 +72,8 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
       ) as SelectQuery;
       mergedQuery.where = fragmentWheres.filter(nonNullable);
       mergedQuery.variables = Object.entries(classData.variables).map(
-        ([variable, isPlural]) =>
-          isPlural
+        ([variable, { plural }]) =>
+          plural
             ? {
                 expression: {
                   expression: dataFactory.variable("_" + variable),
@@ -89,7 +88,7 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
       );
 
       mergedQuery.group = Object.entries(classData.variables)
-        .filter(([_variable, isPlural]) => !isPlural)
+        .filter(([_variable, { plural }]) => !plural)
         .map(([variable]) => ({ expression: dataFactory.variable(variable) }));
 
       return [
@@ -126,7 +125,7 @@ const sparkGenerate = async (options: Options) => {
   ].join("\n\n");
 
   await fs.promises.writeFile(
-    `${import.meta.dirname}/${options.output}`,
+    `${process.cwd()}/${options.output}`,
     output,
     "utf8"
   );

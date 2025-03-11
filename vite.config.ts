@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import SparkCompiler from './SparkCompiler.ts'
+import SparkCompiler from './src/lib/compiler/SparkCompiler'
 
 // https://vite.dev/config/
 export default defineConfig({

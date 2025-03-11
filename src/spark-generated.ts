@@ -1,6 +1,7 @@
 export type Pokemon = {
   iri: string;
   label: string;
+  sinnohNumber?: string;
   image: string;
 }
 
@@ -19,13 +20,13 @@ export const queries = {
     PREFIX vocab: <https://triplydb.com/academy/pokemon/vocab/>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-    SELECT ?pokemon ?label ?image WHERE {
+    SELECT ?pokemon ?label ?sinnohNumber ?image WHERE {
       ?pokemon rdfs:label ?label.
       OPTIONAL { ?pokemon vocab:sinnohNumber ?sinnohNumber. }
       ?pokemon foaf:depiction ?image.
       ?pokemon rdf:type <https://triplydb.com/academy/pokemon/vocab/Pokémon>.
     }
-    GROUP BY ?pokemon ?label ?image
+    GROUP BY ?pokemon ?label ?sinnohNumber ?image
     #orderBy
     #limit
     #offset`,
@@ -39,9 +40,22 @@ export const classMeta = {
       "$pokemon rdf:type vocab:Pokémon"
     ],
     "variables": {
-      "pokemon": false,
-      "label": false,
-      "image": false
+      "pokemon": {
+        "plural": false,
+        "optional": false
+      },
+      "label": {
+        "plural": false,
+        "optional": false
+      },
+      "sinnohNumber": {
+        "plural": false,
+        "optional": true
+      },
+      "image": {
+        "plural": false,
+        "optional": false
+      }
     }
   }
 }

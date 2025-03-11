@@ -17,7 +17,8 @@
     "lodash-es": "^4.17.21",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "sparqljs": "^3.7.3"
+    "sparqljs": "^3.7.3",
+    "traverse": "^0.6.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
@@ -26,6 +27,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/sparqljs": "^3.1.12",
+    "@types/traverse": "^0.6.37",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",

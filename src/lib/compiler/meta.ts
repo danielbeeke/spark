@@ -1,25 +1,35 @@
 import fs from "fs";
-import { Parser, SelectQuery, Term } from "sparqljs";
+import { Parser, SelectQuery } from "sparqljs";
 import { uniq } from "lodash-es";
 import { Options } from "./SparkCompiler";
+import traverse from "traverse";
 
 export type Meta = Record<
   string,
   {
     triplePatterns: string[];
-    variables: Record<string, boolean>;
+    variables: Record<
+      string,
+      {
+        plural: boolean;
+        optional: boolean;
+      }
+    >;
   }
 >;
 
 const regex = new RegExp(/useSpark\([`](.[^`]*)[`]/gms);
 
-const getGroupingName = (triplePattern: string, prefixes: Record<string, string>) => {
+const getGroupingName = (
+  triplePattern: string,
+  prefixes: Record<string, string>
+) => {
   const query = `select * where { ${triplePattern} }`;
   const parser = new Parser({ prefixes });
   const parsedQuery = parser.parse(query) as SelectQuery;
   const bgps = parsedQuery.where?.filter((where) => where.type === "bgp");
-  const groupingName = bgps?.[0].triples[0].subject.value
-  if (!groupingName) throw new Error('Could not extract the groupingName')
+  const groupingName = bgps?.[0].triples[0].subject.value;
+  if (!groupingName) throw new Error("Could not extract the groupingName");
   return groupingName;
 };
 
@@ -34,12 +44,12 @@ export const getTripleMeta = async (
   const triplePatterns: string[] = [];
 
   for (const file of files) {
-    const path = `${import.meta.dirname}/${options.root}/${file}`;
+    const path = `${process.cwd()}/${options.root}/${file}`;
     const stats = await fs.promises.stat(path);
     if (!stats.isFile()) continue;
 
     const contents = await fs.promises.readFile(
-      `${import.meta.dirname}/${options.root}/${file}`,
+      `${process.cwd()}/${options.root}/${file}`,
       "utf8"
     );
     if (contents.includes("useSpark")) {
@@ -49,7 +59,9 @@ export const getTripleMeta = async (
   }
 
   const groupingNames = uniq(
-    triplePatterns.map((triplePattern) => getGroupingName(triplePattern, prefixes))
+    triplePatterns.map((triplePattern) =>
+      getGroupingName(triplePattern, prefixes)
+    )
   );
 
   return Object.fromEntries(
@@ -70,7 +82,7 @@ export const getTripleMeta = async (
         {
           triplePatterns: groupingTriplePatterns,
           variables: Object.fromEntries(
-            variables.map((variable) => {
+            variables.map(({ variable, optional }) => {
               const isSingular = groupingTriplePatterns.some((triplePattern) =>
                 triplePattern.includes(`$${variable}`)
               );
@@ -80,7 +92,13 @@ export const getTripleMeta = async (
               if ((!isSingular && !isPlural) || (isSingular && isPlural))
                 throw new Error("Unexpected");
 
-              return [variable, isPlural];
+              return [
+                variable,
+                {
+                  plural: isPlural,
+                  optional,
+                },
+              ];
             })
           ),
         },
@@ -91,7 +109,7 @@ export const getTripleMeta = async (
 
 export const getPrefixes = async (options: Options) => {
   const entryContents = await fs.promises.readFile(
-    `${import.meta.dirname}/${options.entry}`,
+    `${process.cwd()}/${options.entry}`,
     "utf8"
   );
   const entryContentsCleaned = entryContents
@@ -106,7 +124,6 @@ export const getPrefixes = async (options: Options) => {
   return prefixes;
 };
 
-
 const getVariablesFromTriplePattern = (
   triplePattern: string,
   prefixes: Record<string, string>
@@ -115,19 +132,16 @@ const getVariablesFromTriplePattern = (
 
   const finalQuery = `select * where { ${triplePattern} }`;
   const parsedQuery = parser.parse(finalQuery) as SelectQuery;
-  const variables = uniq(
-    parsedQuery.where
-      ?.flatMap((where) => {
-        return where.type === "bgp" ? where.triples : [];
-      })
-      .flatMap((pattern) => [
-        pattern.subject,
-        pattern.predicate,
-        pattern.object,
-      ])
-      .filter((term) => (term as Term).termType === "Variable")
-      .map((variable) => (variable as Term).value)
-  );
+
+  const variables: { variable: string; optional: boolean }[] = [];
+  traverse(parsedQuery).forEach(function (value) {
+    if (value.termType === "Variable") {
+      const containsOptional = this.parents.some(
+        (parent) => parent.node.type === "optional"
+      );
+      variables.push({ variable: value.value, optional: containsOptional });
+    }
+  });
 
   return variables;
 };
