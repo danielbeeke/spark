@@ -19,9 +19,7 @@ export default function PokemonList() {
     {
       limit,
       orderDirection,
-      sparql: selectedTypes.length
-        ? `filter(?_type IN (${selectedTypes}))`
-        : "",
+      sparql: selectedTypes.length ? `filter(?_type IN (${selectedTypes}))` : '',
     }
   );
 
@@ -33,11 +31,8 @@ export default function PokemonList() {
         onChange={(event) => setLimit(parseInt(event.target.value))}
         min={1}
       />
-      <select
-        onChange={(event) =>
-          setOrderDirection(event.target.value as "asc" | "desc")
-        }
-      >
+
+      <select onChange={(event) => setOrderDirection(event.target.value as "asc" | "desc")}>
         <option value={"asc"}>Ascending</option>
         <option value={"desc"}>Descending</option>
       </select>
@@ -46,9 +41,7 @@ export default function PokemonList() {
         multiple
         value={selectedTypes}
         onChange={(event) => {
-          setSelectedTypes(
-            [...event.target.selectedOptions].map((option) => option.value)
-          );
+          setSelectedTypes([...event.target.selectedOptions].map((option) => option.value));
         }}
       >
         {types.map((type) => (

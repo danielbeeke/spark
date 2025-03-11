@@ -20,10 +20,7 @@ export type Meta = Record<
 
 const regex = new RegExp(/useSpark\([`](.[^`]*)[`]/gms);
 
-const getGroupingName = (
-  triplePattern: string,
-  prefixes: Record<string, string>
-) => {
+const getGroupingName = (triplePattern: string, prefixes: Record<string, string>) => {
   const query = `select * where { ${triplePattern} }`;
   const parser = new Parser({ prefixes });
   const parsedQuery = parser.parse(query) as SelectQuery;
@@ -48,10 +45,7 @@ export const getTripleMeta = async (
     const stats = await fs.promises.stat(path);
     if (!stats.isFile()) continue;
 
-    const contents = await fs.promises.readFile(
-      `${process.cwd()}/${options.root}/${file}`,
-      "utf8"
-    );
+    const contents = await fs.promises.readFile(`${process.cwd()}/${options.root}/${file}`, "utf8");
     if (contents.includes("useSpark")) {
       const matches = contents.matchAll(regex);
       for (const match of matches) triplePatterns.push(match[1]);
@@ -59,9 +53,7 @@ export const getTripleMeta = async (
   }
 
   const groupingNames = uniq(
-    triplePatterns.map((triplePattern) =>
-      getGroupingName(triplePattern, prefixes)
-    )
+    triplePatterns.map((triplePattern) => getGroupingName(triplePattern, prefixes))
   );
 
   return Object.fromEntries(
@@ -90,7 +82,9 @@ export const getTripleMeta = async (
                 triplePattern.includes(`?${variable}`)
               );
               if ((!isSingular && !isPlural) || (isSingular && isPlural))
-                throw new Error(`The variable ${variable} is plural: ${isPlural} & is singular: ${isSingular}`);
+                throw new Error(
+                  `The variable ${variable} is plural: ${isPlural} & is singular: ${isSingular}`
+                );
 
               return [
                 variable,
@@ -108,26 +102,19 @@ export const getTripleMeta = async (
 };
 
 export const getPrefixes = async (options: Options) => {
-  const entryContents = await fs.promises.readFile(
-    `${process.cwd()}/${options.entry}`,
-    "utf8"
-  );
+  const entryContents = await fs.promises.readFile(`${process.cwd()}/${options.entry}`, "utf8");
   const entryContentsCleaned = entryContents
     .split("\n")
     .filter((line) => !line.includes("import"))
     .join("\n");
   const spark = `const Spark = (options) => { return { useSpark: {}, ...options } }\n`;
-  const b64moduleData =
-    "data:text/javascript;base64," + btoa(spark + entryContentsCleaned);
+  const b64moduleData = "data:text/javascript;base64," + btoa(spark + entryContentsCleaned);
   const entry = await import(b64moduleData);
   const { prefixes } = entry.default;
   return prefixes;
 };
 
-const getVariablesFromTriplePattern = (
-  triplePattern: string,
-  prefixes: Record<string, string>
-) => {
+const getVariablesFromTriplePattern = (triplePattern: string, prefixes: Record<string, string>) => {
   const parser = new Parser({ prefixes });
 
   const finalQuery = `select * where { ${triplePattern} }`;
@@ -136,9 +123,7 @@ const getVariablesFromTriplePattern = (
   const variables: { variable: string; optional: boolean }[] = [];
   traverse(parsedQuery).forEach(function (value) {
     if (value.termType === "Variable") {
-      const containsOptional = this.parents.some(
-        (parent) => parent.node.type === "optional"
-      );
+      const containsOptional = this.parents.some((parent) => parent.node.type === "optional");
       variables.push({ variable: value.value, optional: containsOptional });
     }
   });

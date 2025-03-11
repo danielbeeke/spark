@@ -15,10 +15,7 @@ const createFragmentType = (meta: Meta) => {
   return `export type fragmentTypes = {\n${Object.entries(meta)
     .map(([groupingName, classData]) => {
       return classData.triplePatterns
-        .map(
-          (triplePattern) =>
-            `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`
-        )
+        .map((triplePattern) => `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`)
         .join("\n");
     })
     .join("\n")}\n};`;
@@ -27,11 +24,9 @@ const createFragmentType = (meta: Meta) => {
 const createClassTypes = (meta: Meta) => {
   return Object.entries(meta)
     .map(([groupingName, classData]) => {
-      return `export type ${capitalize(groupingName)} = {\n${Object.entries(
-        classData.variables
-      )
+      return `export type ${capitalize(groupingName)} = {\n${Object.entries(classData.variables)
         .map(([variable, { plural, optional }]) => {
-          return `  ${variable === groupingName ? "iri" : variable}${optional ? '?' : ''}: string${
+          return `  ${variable === groupingName ? "iri" : variable}${optional ? "?" : ""}: string${
             plural ? "[]" : ""
           };`;
         })
@@ -49,67 +44,57 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
 
   const queries = Object.fromEntries(
     Object.entries(meta).map(([groupingName, classData]) => {
-      const fragmentWheres = classData.triplePatterns.flatMap(
-        (triplePattern) => {
-          let triplePatternRewritten = triplePattern;
-          for (const [variable, { plural }] of Object.entries(
-            classData.variables
-          )) {
-            if (!plural) continue;
-            triplePatternRewritten = triplePatternRewritten.replaceAll(
-              `?${variable}`,
-              `?_${variable}`
-            );
-          }
-          const finalQuery = `${prefixesString} select * where { ${triplePatternRewritten} }`;
-          const parsedQuery = parser.parse(finalQuery) as SelectQuery;
-          return parsedQuery.where;
+      const fragmentWheres = classData.triplePatterns.flatMap((triplePattern) => {
+        let triplePatternRewritten = triplePattern;
+        for (const [variable, { plural }] of Object.entries(classData.variables)) {
+          if (!plural) continue;
+          triplePatternRewritten = triplePatternRewritten.replaceAll(
+            `?${variable}`,
+            `?_${variable}`
+          );
         }
-      );
+        const finalQuery = `${prefixesString} select * where { ${triplePatternRewritten} }`;
+        const parsedQuery = parser.parse(finalQuery) as SelectQuery;
+        return parsedQuery.where;
+      });
 
-      const mergedQuery = parser.parse(
-        `${prefixesString} select * where {}`
-      ) as SelectQuery;
+      const mergedQuery = parser.parse(`${prefixesString} select * where {}`) as SelectQuery;
       mergedQuery.where = fragmentWheres.filter(nonNullable);
-      mergedQuery.variables = Object.entries(classData.variables).map(
-        ([variable, { plural }]) =>
-          plural
-            ? {
-                expression: {
-                  expression: dataFactory.variable("_" + variable),
-                  type: "aggregate",
-                  aggregation: "group_concat",
-                  distinct: false,
-                  separator: "|||",
-                },
-                variable: dataFactory.variable(variable),
-              }
-            : dataFactory.variable(variable)
+      mergedQuery.variables = Object.entries(classData.variables).map(([variable, { plural }]) =>
+        plural
+          ? {
+              expression: {
+                expression: dataFactory.variable("_" + variable),
+                type: "aggregate",
+                aggregation: "group_concat",
+                distinct: false,
+                separator: "|||",
+              },
+              variable: dataFactory.variable(variable),
+            }
+          : dataFactory.variable(variable)
       );
 
       mergedQuery.group = Object.entries(classData.variables)
         .filter(([_variable, { plural }]) => !plural)
         .map(([variable]) => ({ expression: dataFactory.variable(variable) }));
 
-      let query = generator.stringify(mergedQuery) + `\n#orderBy\n#limit\n#offset`
-      query = query.replace(`}\nGROUP`, `#additionSparql\n}\nGROUP`)
+      let query = generator.stringify(mergedQuery) + `\n#orderBy\n#limit\n#offset`;
+      query = query.replace(`}\nGROUP`, `#additionSparql\n}\nGROUP`);
 
-      return [
-        groupingName,
-        query
-      ];
+      return [groupingName, query];
     })
   );
 
-  return `export const queries = {\n${Object.entries(queries).map(
-    ([name, query]) => {
+  return `export const queries = {\n${Object.entries(queries)
+    .map(([name, query]) => {
       const indentedQuery = query
         .split("\n")
         .map((line) => `    ${line}`)
         .join("\n");
       return `  ${name}:\`\n${indentedQuery}\`,`;
-    }
-  ).join('')}\n}`;
+    })
+    .join("")}\n}`;
 };
 
 const createClassMeta = (meta: Meta) => {
@@ -127,11 +112,7 @@ const sparkGenerate = async (options: Options) => {
     createClassMeta(meta),
   ].join("\n\n");
 
-  await fs.promises.writeFile(
-    `${process.cwd()}/${options.output}`,
-    output,
-    "utf8"
-  );
+  await fs.promises.writeFile(`${process.cwd()}/${options.output}`, output, "utf8");
 };
 
 export default function SparkCompiler(options: Options) {
