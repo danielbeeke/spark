@@ -4,7 +4,10 @@ import { useSpark } from "./spark.js";
 import PokemonImage from "./PokemonImage.js";
 
 export default function Pokemon(pokemon: Pokemon) {
-  useSpark(`$pokemon rdfs:label $label.`);
+  useSpark(`
+    $pokemon rdfs:label $label .
+    optional { $pokemon vocab:sinnohNumber $sinnohNumber }
+  `);
 
   return (
     <div className="pokemon">
