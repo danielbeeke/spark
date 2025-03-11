@@ -12,7 +12,7 @@ type QueryOptions = {
   orderDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
-  additionalSparql?: string
+  sparql?: string
 };
 
 type SparqlResponse = {
@@ -57,16 +57,13 @@ const createPromise = ({
     orderDirection = "asc",
     limit,
     offset,
-    additionalSparql
+    sparql
   } = queryOptions ?? {};
 
-  if (orderBy)
-    query = query.replace("#orderBy", `order by ${orderDirection}(${orderBy})`);
-  if (limit !== undefined) query = query.replace("#limit", `limit ${limit}`);
-  if (offset !== undefined)
-    query = query.replace("#offset", `offset ${offset}`);
-  if (additionalSparql !== undefined)
-    query = query.replace("#additionSparql", additionalSparql);
+  query = query.replace("#orderBy", orderBy ? `order by ${orderDirection}(${orderBy})` : '');
+  query = query.replace("#limit", limit !== undefined ? `limit ${limit}` : '');
+  query = query.replace("#offset", offset ? `offset ${offset}` : '');
+  query = query.replace("#additionSparql", sparql ?? '');
 
   const url = new URL(endpoint);
   url.searchParams.set("query", query);

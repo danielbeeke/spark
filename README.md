@@ -50,3 +50,8 @@ Removing a triply pattern will show all the places where that binding was used.
 - [ ] Allow filtering dynamically.
 - [x] Use ? SPARQL variables to denote plural and $ to denote singular.
 - [x] Translate the subject variable always to `iri` and singular.
+
+# What do you need to know to use it?
+- `useSpark`s first argument is used statically. The input you can give is everything that you normally write between the curly brackets in `select * as {}`. The compiler reads these SPARQL fragments and extracts all the information needed to create a TypeScript type and to write an accompanying query template (see spark-generated.ts). 
+- Dynamic tricks can be done with the second argument to `useSpark`. It contains a limit, offset, orderDirection and orderBy arguments as well as `additionalSparql` in which you can write raw SPARQL for dynamic filters.
+- SPARQL variables: ? denotes a predicate is plural, $ denotes it is singular.
