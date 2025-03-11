@@ -56,7 +56,7 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
             classData.variables
           )) {
             if (!plural) continue;
-            triplePatternRewritten = triplePatternRewritten.replace(
+            triplePatternRewritten = triplePatternRewritten.replaceAll(
               `?${variable}`,
               `?_${variable}`
             );
@@ -91,9 +91,12 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
         .filter(([_variable, { plural }]) => !plural)
         .map(([variable]) => ({ expression: dataFactory.variable(variable) }));
 
+      let query = generator.stringify(mergedQuery) + `\n#orderBy\n#limit\n#offset`
+      query = query.replace(`}\nGROUP`, `#additionSparql\n}\nGROUP`)
+
       return [
         groupingName,
-        generator.stringify(mergedQuery) + `\n#orderBy\n#limit\n#offset`,
+        query
       ];
     })
   );
@@ -106,7 +109,7 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
         .join("\n");
       return `  ${name}:\`\n${indentedQuery}\`,`;
     }
-  )}\n}`;
+  ).join('')}\n}`;
 };
 
 const createClassMeta = (meta: Meta) => {

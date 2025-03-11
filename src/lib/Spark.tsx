@@ -12,6 +12,7 @@ type QueryOptions = {
   orderDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
+  additionalSparql?: string
 };
 
 type SparqlResponse = {
@@ -29,8 +30,8 @@ const processBindings = (groupingName: string) => (sparqlResponse: SparqlRespons
     Object.fromEntries(
       Object.entries(binding).map(([key, value]) => {
         const variables = classMeta[groupingName as keyof typeof classMeta].variables
-        const isPlural = variables[key as keyof typeof variables]
-        const preparedValue = isPlural ? value.value.split('|||') : value.value
+        const { plural } = variables[key as keyof typeof variables]
+        const preparedValue = plural ? value.value.split('|||') : value.value
         return [key === groupingName ? 'iri' : key, preparedValue]
       })
     )
@@ -56,6 +57,7 @@ const createPromise = ({
     orderDirection = "asc",
     limit,
     offset,
+    additionalSparql
   } = queryOptions ?? {};
 
   if (orderBy)
@@ -63,6 +65,8 @@ const createPromise = ({
   if (limit !== undefined) query = query.replace("#limit", `limit ${limit}`);
   if (offset !== undefined)
     query = query.replace("#offset", `offset ${offset}`);
+  if (additionalSparql !== undefined)
+    query = query.replace("#additionSparql", additionalSparql);
 
   const url = new URL(endpoint);
   url.searchParams.set("query", query);
@@ -106,6 +110,7 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
         // For that reason we lazily executed the fetch.
         get items(): fragmentTypes[T][] {
           const groupingName = triplePattern
+            .trim()
             .split(" ")[0]
             .substring(1) as keyof typeof queries;
 

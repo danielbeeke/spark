@@ -6,10 +6,25 @@ export default function PokemonList() {
   const [limit, setLimit] = useState(10);
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
-  const { items: pokemons } = useSpark(`$pokemon rdf:type vocab:Pokémon`, {
-    limit,
-    orderDirection,
-  });
+  const { items: types } = useSpark(`
+    $type rdfs:label $label . 
+    filter(strstarts(str($type), str(id:)))
+  `);
+
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+
+  const { items: pokemons } = useSpark(`
+      $pokemon rdf:type vocab:Pokémon .
+      $pokemon vocab:type ?type .
+    `,
+    {
+      limit,
+      orderDirection,
+      additionalSparql: selectedTypes.length
+        ? `filter(?_type IN (${selectedTypes}))`
+        : "",
+    }
+  );
 
   return (
     <div>
@@ -26,6 +41,16 @@ export default function PokemonList() {
       >
         <option value={"asc"}>Ascending</option>
         <option value={"desc"}>Descending</option>
+      </select>
+
+      <select multiple value={selectedTypes} onChange={(event) => {
+        setSelectedTypes([...event.target.selectedOptions].map(option => option.value))
+      }}>
+        {types.map((type) => (
+          <option value={`<${type.iri}>`} key={type.iri}>
+            {type.label}
+          </option>
+        ))}
       </select>
 
       {pokemons.map((pokemon) => (

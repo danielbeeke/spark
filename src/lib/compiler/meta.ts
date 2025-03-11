@@ -90,7 +90,7 @@ export const getTripleMeta = async (
                 triplePattern.includes(`?${variable}`)
               );
               if ((!isSingular && !isPlural) || (isSingular && isPlural))
-                throw new Error("Unexpected");
+                throw new Error(`The variable ${variable} is plural: ${isPlural} & is singular: ${isSingular}`);
 
               return [
                 variable,

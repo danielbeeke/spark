@@ -46,6 +46,7 @@ Removing a triply pattern will show all the places where that binding was used.
 # Ideas
 
 - [x] Allow optional and propagate to the types.
-- [ ] Allow filter() statically and also dynamically.
+- [x] Allow filter() statically. Somewhat implemented. You can use it in the SPARQL.
+- [ ] Allow filtering dynamically.
 - [x] Use ? SPARQL variables to denote plural and $ to denote singular.
 - [x] Translate the subject variable always to `iri` and singular.
