@@ -20,6 +20,10 @@ type SparqlResponse = {
   };
 };
 
+/**
+ * This can fail when your data has multiple values for a certain predicate but you used the wrong symbol in the triple pattern:
+ * ? denotes a predicate is plural, $ denotes it is singular.
+ */
 const processBindings = (groupingName: string) => (sparqlResponse: SparqlResponse) => {
   return sparqlResponse.results.bindings.map((binding) =>
     Object.fromEntries(

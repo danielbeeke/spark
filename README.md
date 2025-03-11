@@ -45,7 +45,7 @@ Removing a triply pattern will show all the places where that binding was used.
 
 # Ideas
 
+- [ ] Allow optional and propagate to the types.
+- [ ] Allow filter() statically and also dynamically.
 - [x] Use ? SPARQL variables to denote plural and $ to denote singular.
-- Allow optional and propagate to the types.
 - [x] Translate the subject variable always to `iri` and singular.
-- Allow filter() statically and also dynamically.
