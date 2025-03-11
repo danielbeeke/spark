@@ -12,6 +12,8 @@ export default function PokemonList() {
     filter(strstarts(str($type), str(id:)))
   `);
 
+  const filterQuery = selectedTypes.length ? `filter(?_type in (${selectedTypes}))` : ''
+
   const { items: pokemons } = useSpark(`
       $pokemon rdf:type vocab:Pokémon .
       $pokemon vocab:type ?type .
@@ -19,7 +21,7 @@ export default function PokemonList() {
     {
       limit,
       orderDirection,
-      sparql: selectedTypes.length ? `filter(?_type IN (${selectedTypes}))` : '',
+      sparql: filterQuery,
     }
   );
 
@@ -40,9 +42,9 @@ export default function PokemonList() {
       <select
         multiple
         value={selectedTypes}
-        onChange={(event) => {
-          setSelectedTypes([...event.target.selectedOptions].map((option) => option.value));
-        }}
+        onChange={(event) => 
+          setSelectedTypes([...event.target.selectedOptions].map((option) => option.value))
+        }
       >
         {types.map((type) => (
           <option value={`<${type.iri}>`} key={type.iri}>
