@@ -6,10 +6,12 @@ import Markdown from 'react-markdown'
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <div style={{ display: "flex" }}>
-      <PokemonList />
-      <div>
-        <Markdown>{readme}</Markdown>
+    <div className="container">
+      <div className="row">
+        <div className="col-5 p-3">
+          <Markdown>{readme}</Markdown>
+        </div>
+        <PokemonList />
       </div>
     </div>
   </StrictMode>

@@ -10,8 +10,8 @@ export default function Pokemon(pokemon: Pokemon) {
   `);
 
   return (
-    <div className="pokemon">
-      <h2>{pokemon.label}</h2>
+    <div className="pokemon m-3" style={{flex: '20% 1 1'}}>
+      <h3>{pokemon.label}</h3>
       <PokemonImage {...pokemon} />
     </div>
   );

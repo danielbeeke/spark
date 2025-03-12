@@ -4,6 +4,7 @@ An experiment to have decoupled React components driven by SPARQL fragments that
 
 # How to use?
 
+- Include `SparkCompiler` into your vite.config.ts 
 - Start by creating a local Spark instance exactly like: ./src/spark.ts. Here you can add prefixes and the SPARQL endpoint that you want to use.
 - Write components and use `useSpark('$product rdfs:label $label')` to require the predicate rdfs:label to be fetched for products.
     - After writing this SPARQL fragment, a TypeScript type will be available for `Product` which you can find in spark-generated.ts.
@@ -17,3 +18,4 @@ An experiment to have decoupled React components driven by SPARQL fragments that
     - `sparql` can be used to execute dynamic SPARQL together with all the properties that will be fetched. You can use this for filtering.
     - `offset` and `limit` can be used for pagination.
     - `orderBy` and `orderDirection` can be used for ordering.
+- Inside the type the subject gets the variable `iri`.
