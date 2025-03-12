@@ -30,7 +30,10 @@ export default function PokemonList() {
       <input
         type="number"
         value={limit}
-        onChange={(event) => setLimit(parseInt(event.target.value))}
+        onChange={(event) => {
+          const newLimit = Math.max(parseInt(event.target.value), 1)
+          if (Number.isInteger(newLimit) && newLimit > 0) setLimit(newLimit)
+        }}
         min={1}
       />
 
