@@ -8,7 +8,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <div className="container">
       <div className="row">
-        <div className="col-5 p-3">
+        <div className="col-6 p-3">
           <Markdown>{readme}</Markdown>
         </div>
         <PokemonList />

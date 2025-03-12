@@ -13,7 +13,7 @@ export default function PokemonList() {
   `);
 
   return (
-    <div className="col-7">
+    <div className="col-6">
       <div className="filters d-flex p-3 gap-3">
         <div className="mb-3">
           <label htmlFor="limit" className="form-label">
