@@ -48,7 +48,7 @@ const createPromise = ({
   if (!(groupingName in queries)) throw new Error("Could not find the query");
 
   let query = queries[groupingName];
-  const {
+  let {
     orderBy = `$${groupingName}`,
     orderDirection = "asc",
     limit,
@@ -59,6 +59,17 @@ const createPromise = ({
   query = query.replace("#orderBy", orderBy ? `order by ${orderDirection}(${orderBy})` : "");
   query = query.replace("#limit", limit !== undefined ? `limit ${limit}` : "");
   query = query.replace("#offset", offset ? `offset ${offset}` : "");
+
+  const variables = classMeta[groupingName as keyof typeof classMeta].variables;
+
+  // This rewriting is needed because the developer can input a certain variable name and 
+  // expects that name to be used as the output, but under the hood we use a different variable name temporarily.
+  if (sparql) {
+    for (const [variable, { plural }] of Object.entries(variables)) {
+      if (plural) sparql = sparql.replaceAll(`?${variable}`, `?_${variable}`)
+    }
+  }
+
   query = query.replace("#additionSparql", sparql ?? "");
 
   const url = new URL(endpoint);
@@ -83,12 +94,12 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
   return {
     endpoint,
     prefixes,
-    useSpark: <T extends keyof fragmentTypes>(triplePattern: T, queryOptions?: QueryOptions) => {
+    useSpark: <T extends keyof fragmentTypes>(triplePatternOrGroupingName: T, queryOptions?: QueryOptions) => {
       const getPromise = (): Promise<fragmentTypes[T][]> => {
-        const groupingName = triplePattern
-          .trim()
+        const groupingName = (triplePatternOrGroupingName.includes(' ') ?
+        triplePatternOrGroupingName.trim()
           .split(" ")[0]
-          .substring(1) as keyof typeof queries;
+          .substring(1) : triplePatternOrGroupingName) as keyof typeof queries;
 
         const cid = groupingName + JSON.stringify(queryOptions);
 

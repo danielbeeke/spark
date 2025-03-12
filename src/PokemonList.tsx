@@ -12,7 +12,7 @@ export default function PokemonList() {
     filter(strstarts(str($type), str(id:)))
   `);
 
-  const filterQuery = selectedTypes.length ? `filter(?_type in (${selectedTypes}))` : ''
+  const filterQuery = selectedTypes.length ? `filter(?type in (${selectedTypes}))` : ''
 
   const { items: pokemons } = useSpark(`
       $pokemon rdf:type vocab:Pokémon .

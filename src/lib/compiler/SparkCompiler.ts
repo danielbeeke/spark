@@ -14,9 +14,9 @@ export type Options = {
 const createFragmentType = (meta: Meta) => {
   return `export type fragmentTypes = {\n${Object.entries(meta)
     .map(([groupingName, classData]) => {
-      return classData.triplePatterns
+      return `${classData.triplePatterns
         .map((triplePattern) => `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`)
-        .join("\n");
+        .join('\n')}\n  ${groupingName}: ${capitalize(groupingName)};`
     })
     .join("\n")}\n};`;
 };

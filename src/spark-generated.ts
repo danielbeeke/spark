@@ -20,10 +20,12 @@ export type fragmentTypes = {
       $pokemon rdf:type vocab:Pokémon .
       $pokemon vocab:type ?type .
     `]: Pokemon;
+  pokemon: Pokemon;
   [`
     $type rdfs:label $label . 
     filter(strstarts(str($type), str(id:)))
   `]: Type;
+  type: Type;
 };
 
 export const queries = {
