@@ -29,6 +29,12 @@ const dataTypeMapping = {
   "http://www.w3.org/2001/XMLSchema#integer": "number",
 };
 
+const mapType = (iri: string): string => {
+  return iri in dataTypeMapping
+  ? dataTypeMapping[iri as keyof typeof dataTypeMapping]
+  : "string";
+}
+
 const createClassTypes = (meta: Meta, dataTypes: DataTypes) => {
   return Object.entries(meta)
     .map(([groupingName, classData]) => {
@@ -39,11 +45,7 @@ const createClassTypes = (meta: Meta, dataTypes: DataTypes) => {
           ];
 
           const type = variableDataTypes
-            .map((dataTypeIri) => {
-              return dataTypeIri in dataTypeMapping
-                ? dataTypeMapping[dataTypeIri as keyof typeof dataTypeMapping]
-                : "string";
-            })
+            .map(mapType)
             .join(" | ");
           return `  ${variable === groupingName ? "iri" : variable}${optional ? "?" : ""}: ${
             plural ? "Array<" : ""
@@ -190,9 +192,14 @@ const getDataTypes = async (meta: Meta, prefixes: Record<string, string>, endpoi
 const sparkGenerate = async (options: Options) => {
   const { prefixes, endpoint } = await getOptions(options);
   const meta = await getTripleMeta(options, prefixes);
-
   const dataTypes = options.discoverDataTypes ? await getDataTypes(meta, prefixes, endpoint) : {};
 
+  for (const [groupingName, groupDataTypes] of Object.entries(dataTypes)) {
+    for (const [variable, variableDataTypes] of Object.entries(groupDataTypes)) {
+      meta[groupingName].variables[variable].dataTypes = variableDataTypes.map(mapType)
+    }
+  }
+  
   const output = [
     createClassTypes(meta, dataTypes),
     createFragmentType(meta),

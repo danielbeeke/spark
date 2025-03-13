@@ -68,23 +68,34 @@ export const classMeta = {
     "variables": {
       "pokemon": {
         "plural": false,
-        "optional": false
+        "optional": false,
+        "dataTypes": []
       },
       "label": {
         "plural": false,
-        "optional": false
+        "optional": false,
+        "dataTypes": [
+          "string"
+        ]
       },
       "sinnohNumber": {
         "plural": false,
-        "optional": true
+        "optional": true,
+        "dataTypes": [
+          "number"
+        ]
       },
       "image": {
         "plural": false,
-        "optional": false
+        "optional": false,
+        "dataTypes": [
+          "string"
+        ]
       },
       "type": {
         "plural": true,
-        "optional": false
+        "optional": false,
+        "dataTypes": []
       }
     }
   },
@@ -95,11 +106,15 @@ export const classMeta = {
     "variables": {
       "type": {
         "plural": false,
-        "optional": false
+        "optional": false,
+        "dataTypes": []
       },
       "label": {
         "plural": false,
-        "optional": false
+        "optional": false,
+        "dataTypes": [
+          "string"
+        ]
       }
     }
   }

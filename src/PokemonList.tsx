@@ -100,6 +100,8 @@ function InnerList({
     }
   );
 
+  console.log(pokemons)
+
   return (
     <div
       className="d-flex flex-wrap"

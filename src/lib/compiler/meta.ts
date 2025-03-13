@@ -13,6 +13,7 @@ export type Meta = Record<
       {
         plural: boolean;
         optional: boolean;
+        dataTypes: string[]
       }
     >;
   }
@@ -91,6 +92,7 @@ export const getTripleMeta = async (
                 {
                   plural: isPlural,
                   optional,
+                  dataTypes: []
                 },
               ];
             })

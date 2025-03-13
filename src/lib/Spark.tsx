@@ -21,14 +21,27 @@ type SparqlResponse = {
   };
 };
 
+const asString = (value: any) => value + ''
+
+const typeFunctions = {
+  'number': parseInt,
+  'string': asString
+}
+
 const processBindings = (groupingName: string) => (sparqlResponse: SparqlResponse) => {
   return sparqlResponse.results.bindings.map((binding) =>
     Object.fromEntries(
       Object.entries(binding).map(([key, value]) => {
         const variables = classMeta[groupingName as keyof typeof classMeta].variables;
-        const { plural } = variables[key as keyof typeof variables];
-        const preparedValue = plural ? value.value.split("|||") : value.value;
-        return [key === groupingName ? "iri" : key, preparedValue];
+        const { plural, dataTypes } = variables[key as keyof typeof variables];
+        const preparedValues = plural ? value.value.split("|||") : [value.value];
+        const mappedValues = preparedValues.map(value => {
+          // For now we just do the first one
+          const typeFunction = typeFunctions[dataTypes[0] as keyof typeof typeFunctions] ?? asString
+          return typeFunction(value)
+        })
+        
+        return [key === groupingName ? "iri" : key, plural ? mappedValues : mappedValues[0]];
       })
     )
   );
