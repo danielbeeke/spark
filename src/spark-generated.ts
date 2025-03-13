@@ -1,9 +1,9 @@
 export type Pokemon = {
   iri: string;
   label: string;
-  sinnohNumber?: string;
+  sinnohNumber?: number;
   image: string;
-  type: string[];
+  type: Array<string>;
 }
 export type Type = {
   iri: string;

@@ -101,7 +101,7 @@ export const getTripleMeta = async (
   );
 };
 
-export const getPrefixes = async (options: Options) => {
+export const getOptions = async (options: Options): Promise<{ endpoint: string, prefixes: Record<string, string>}> => {
   const entryContents = await fs.promises.readFile(`${process.cwd()}/${options.entry}`, "utf8");
   const entryContentsCleaned = entryContents
     .split("\n")
@@ -110,8 +110,7 @@ export const getPrefixes = async (options: Options) => {
   const spark = `const Spark = (options) => { return { useSpark: {}, ...options } }\n`;
   const b64moduleData = "data:text/javascript;base64," + btoa(spark + entryContentsCleaned);
   const entry = await import(b64moduleData);
-  const { prefixes } = entry.default;
-  return prefixes;
+  return entry.default;
 };
 
 const getVariablesFromTriplePattern = (triplePattern: string, prefixes: Record<string, string>) => {

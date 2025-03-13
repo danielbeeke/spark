@@ -4,11 +4,7 @@ import SparkCompiler from './src/lib/compiler/SparkCompiler'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), SparkCompiler({
-    entry: './src/spark.ts',
-    root: './src',
-    output: './src/spark-generated.ts'
-  })],
+  plugins: [react(), SparkCompiler({ discoverDataTypes: true })],
   build: {
     outDir: 'docs'
   },

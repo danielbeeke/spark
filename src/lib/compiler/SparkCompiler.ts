@@ -1,34 +1,53 @@
 import fs from "fs";
-import { Parser, Generator, SelectQuery } from "sparqljs";
+import { Parser, Generator, SelectQuery, BindPattern } from "sparqljs";
 import { nonNullable } from "../nonNullable";
 import { capitalize } from "lodash-es";
 import dataFactory from "@rdfjs/data-model";
-import { getPrefixes, getTripleMeta, Meta } from "./meta";
+import { getOptions, getTripleMeta, Meta } from "./meta";
 
 export type Options = {
   entry: string;
   root: string;
   output: string;
+  discoverDataTypes: boolean;
 };
+
+export type DataTypes = Record<string, Record<string, string[]>>;
 
 const createFragmentType = (meta: Meta) => {
   return `export type fragmentTypes = {\n${Object.entries(meta)
     .map(([groupingName, classData]) => {
       return `${classData.triplePatterns
         .map((triplePattern) => `  [\`${triplePattern}\`]: ${capitalize(groupingName)};`)
-        .join('\n')}\n  ${groupingName}: ${capitalize(groupingName)};`
+        .join("\n")}\n  ${groupingName}: ${capitalize(groupingName)};`;
     })
     .join("\n")}\n};`;
 };
 
-const createClassTypes = (meta: Meta) => {
+const dataTypeMapping = {
+  "http://www.w3.org/2001/XMLSchema#string": "string",
+  "http://www.w3.org/2001/XMLSchema#integer": "number",
+};
+
+const createClassTypes = (meta: Meta, dataTypes: DataTypes) => {
   return Object.entries(meta)
     .map(([groupingName, classData]) => {
       return `export type ${capitalize(groupingName)} = {\n${Object.entries(classData.variables)
         .map(([variable, { plural, optional }]) => {
-          return `  ${variable === groupingName ? "iri" : variable}${optional ? "?" : ""}: string${
-            plural ? "[]" : ""
-          };`;
+          const variableDataTypes = dataTypes[groupingName]?.[variable] ?? [
+            "http://www.w3.org/2001/XMLSchema#string",
+          ];
+
+          const type = variableDataTypes
+            .map((dataTypeIri) => {
+              return dataTypeIri in dataTypeMapping
+                ? dataTypeMapping[dataTypeIri as keyof typeof dataTypeMapping]
+                : "string";
+            })
+            .join(" | ");
+          return `  ${variable === groupingName ? "iri" : variable}${optional ? "?" : ""}: ${
+            plural ? "Array<" : ""
+          }${type}${plural ? ">" : ""};`;
         })
         .join("\n")}\n}`;
     })
@@ -101,12 +120,81 @@ const createClassMeta = (meta: Meta) => {
   return `export const classMeta = ${JSON.stringify(meta, null, 2)}`;
 };
 
+const getDataTypes = async (meta: Meta, prefixes: Record<string, string>, endpoint: string) => {
+  const generator = new Generator();
+  const parser = new Parser({ prefixes });
+  const prefixesString = Object.entries(prefixes)
+    .map(([alias, namespace]) => `prefix ${alias}: <${namespace}>`)
+    .join("\n");
+
+  const allDataTypes: Record<string, Record<string, string[]>> = {};
+  for (const [groupingName, classData] of Object.entries(meta)) {
+    const fragmentWheres = classData.triplePatterns.flatMap((triplePattern) => {
+      let triplePatternRewritten = triplePattern;
+      const finalQuery = `${prefixesString} select * where { ${triplePatternRewritten} }`;
+      const parsedQuery = parser.parse(finalQuery) as SelectQuery;
+      return parsedQuery.where;
+    });
+
+    const mergedQuery = parser.parse(`${prefixesString} select * where {}`) as SelectQuery;
+    const binds = Object.entries(classData.variables)
+      .map(([variable]) => {
+        if (variable === groupingName) return undefined;
+        return {
+          type: "bind" as const,
+          variable: dataFactory.variable(variable + "Datatype"),
+          expression: {
+            type: "operation" as const,
+            operator: "datatype",
+            args: [dataFactory.variable(variable)],
+          },
+        };
+      })
+      .filter(nonNullable);
+    mergedQuery.where = [...fragmentWheres.filter(nonNullable), ...binds.filter(nonNullable)];
+    mergedQuery.variables = Object.entries(classData.variables).map(([variable]) =>
+      dataFactory.variable(variable + "Datatype")
+    );
+    mergedQuery.group = Object.entries(classData.variables).map(([variable]) => ({
+      expression: dataFactory.variable(variable + "Datatype"),
+    }));
+
+    const query = generator.stringify(mergedQuery);
+    const url = new URL(endpoint);
+    url.searchParams.set("query", query);
+
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/sparql-results+json",
+      },
+    });
+
+    const datatypes: Record<string, string[]> = {};
+    const json: any = await response.json();
+    for (const binding of json.results.bindings) {
+      for (const [key, datatype] of Object.entries(binding)) {
+        const cleanedKey = key.replace("Datatype", "");
+        if (!datatypes[cleanedKey]) datatypes[cleanedKey] = [];
+        const dataTypeIri = (datatype as any).value as string;
+        if (!datatypes[cleanedKey].includes(dataTypeIri)) datatypes[cleanedKey].push(dataTypeIri);
+      }
+    }
+
+    allDataTypes[groupingName] = datatypes;
+  }
+
+  return allDataTypes;
+};
+
 const sparkGenerate = async (options: Options) => {
-  const prefixes = await getPrefixes(options);
+  const { prefixes, endpoint } = await getOptions(options);
   const meta = await getTripleMeta(options, prefixes);
 
+  const dataTypes = options.discoverDataTypes ? await getDataTypes(meta, prefixes, endpoint) : {};
+
   const output = [
-    createClassTypes(meta),
+    createClassTypes(meta, dataTypes),
     createFragmentType(meta),
     createClassQueries(meta, prefixes),
     createClassMeta(meta),
@@ -115,7 +203,14 @@ const sparkGenerate = async (options: Options) => {
   await fs.promises.writeFile(`${process.cwd()}/${options.output}`, output, "utf8");
 };
 
-export default function SparkCompiler(options: Options) {
+export default function SparkCompiler({
+  entry = "./src/spark.ts",
+  root = "./src",
+  output = "./src/spark-generated.ts",
+  discoverDataTypes = false,
+}: Partial<Options>) {
+  const options = { entry, root, output, discoverDataTypes };
+
   return {
     name: "spark-compiler",
 
@@ -123,7 +218,8 @@ export default function SparkCompiler(options: Options) {
       await sparkGenerate(options);
     },
 
-    async handleHotUpdate() {
+    async handleHotUpdate({ file }: { file: string }) {
+      if (file.includes("spark-generated")) return;
       await sparkGenerate(options);
     },
   };
