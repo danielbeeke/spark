@@ -60,6 +60,7 @@ export const queries = {
 
 export const classMeta = {
   "pokemon": {
+    "endpoint": "https://api.triplydb.com/datasets/academy/pokemon/services/jena/sparql",
     "triplePatterns": [
       "\n    $pokemon rdfs:label $label .\n    optional { $pokemon vocab:sinnohNumber $sinnohNumber }\n  ",
       "$pokemon foaf:depiction $image",
@@ -100,6 +101,7 @@ export const classMeta = {
     }
   },
   "type": {
+    "endpoint": "https://api.triplydb.com/datasets/academy/pokemon/services/jena/sparql",
     "triplePatterns": [
       "\n    $type rdfs:label $label . \n    filter(strstarts(str($type), str(id:)))\n  "
     ],

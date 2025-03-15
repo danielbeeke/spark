@@ -1,5 +1,5 @@
-import type { Pokemon } from "./spark-generated";
-import { useSpark } from "./spark.js";
+import { useSpark } from "@lib/Spark.js";
+import type { Pokemon } from "../.spark/generated.js";
 
 import PokemonImage from "./PokemonImage.js";
 

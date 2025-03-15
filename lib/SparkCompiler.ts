@@ -1,15 +1,18 @@
 import fs from "fs";
-import { Parser, Generator, SelectQuery, BindPattern } from "sparqljs";
-import { nonNullable } from "../nonNullable";
+import { Parser, Generator, SelectQuery } from "sparqljs";
+import { nonNullable } from "./nonNullable";
 import { capitalize } from "lodash-es";
 import dataFactory from "@rdfjs/data-model";
-import { getOptions, getTripleMeta, Meta } from "./meta";
+import { getTripleMeta, Meta } from "./meta";
+
+type Source = {
+  discoverDataTypes?: boolean
+  endpoint: string,
+  prefixes?: Record<string, string>
+}
 
 export type Options = {
-  entry: string;
-  root: string;
-  output: string;
-  discoverDataTypes: boolean;
+  sources: Record<string, Source>
 };
 
 export type DataTypes = Record<string, Record<string, string[]>>;
@@ -189,10 +192,9 @@ const getDataTypes = async (meta: Meta, prefixes: Record<string, string>, endpoi
   return allDataTypes;
 };
 
-const sparkGenerate = async (options: Options) => {
-  const { prefixes, endpoint } = await getOptions(options);
-  const meta = await getTripleMeta(options, prefixes);
-  const dataTypes = options.discoverDataTypes ? await getDataTypes(meta, prefixes, endpoint) : {};
+const sparkGenerate = async ({ prefixes = {}, endpoint, discoverDataTypes }: Source) => {
+  const meta = await getTripleMeta('./src', prefixes, endpoint);
+  const dataTypes = discoverDataTypes ? await getDataTypes(meta, prefixes, endpoint) : {};
 
   for (const [groupingName, groupDataTypes] of Object.entries(dataTypes)) {
     for (const [variable, variableDataTypes] of Object.entries(groupDataTypes)) {
@@ -207,27 +209,27 @@ const sparkGenerate = async (options: Options) => {
     createClassMeta(meta),
   ].join("\n\n");
 
-  await fs.promises.writeFile(`${process.cwd()}/${options.output}`, output, "utf8");
+  await fs.promises.writeFile(`${process.cwd()}/.spark/generated.ts`, output, "utf8");
 };
 
-export default function SparkCompiler({
-  entry = "./src/spark.ts",
-  root = "./src",
-  output = "./src/spark-generated.ts",
-  discoverDataTypes = false,
-}: Partial<Options>) {
-  const options = { entry, root, output, discoverDataTypes };
+export default function SparkCompiler({ sources }: Options) {
+  if (Object.keys(sources).length > 1) throw new Error('Multiple sources not yet supported')
 
   return {
     name: "spark-compiler",
 
     async buildStart() {
-      await sparkGenerate(options);
+      for (const source of Object.values(sources)) {
+        await sparkGenerate(source);
+      }
     },
 
     async handleHotUpdate({ file }: { file: string }) {
       if (file.includes("spark-generated")) return;
-      await sparkGenerate(options);
+
+      for (const source of Object.values(sources)) {
+        await sparkGenerate(source);
+      }
     },
   };
 }

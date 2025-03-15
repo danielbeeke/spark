@@ -1,12 +1,12 @@
 import fs from "fs";
 import { Parser, SelectQuery } from "sparqljs";
 import { uniq } from "lodash-es";
-import { Options } from "./SparkCompiler";
 import traverse from "traverse";
 
 export type Meta = Record<
   string,
   {
+    endpoint: string;
     triplePatterns: string[];
     variables: Record<
       string,
@@ -32,21 +32,22 @@ const getGroupingName = (triplePattern: string, prefixes: Record<string, string>
 };
 
 export const getTripleMeta = async (
-  options: Options,
-  prefixes: Record<string, string>
+  root: string,
+  prefixes: Record<string, string>,
+  endpoint: string
 ): Promise<Meta> => {
-  const files = await fs.promises.readdir(options.root, {
+  const files = await fs.promises.readdir(root, {
     recursive: true,
   });
 
   const triplePatterns: string[] = [];
 
   for (const file of files) {
-    const path = `${process.cwd()}/${options.root}/${file}`;
+    const path = `${process.cwd()}/${root}/${file}`;
     const stats = await fs.promises.stat(path);
     if (!stats.isFile()) continue;
 
-    const contents = await fs.promises.readFile(`${process.cwd()}/${options.root}/${file}`, "utf8");
+    const contents = await fs.promises.readFile(`${process.cwd()}/${root}/${file}`, "utf8");
     if (contents.includes("useSpark")) {
       const matches = contents.matchAll(regex);
       for (const match of matches) triplePatterns.push(match[1]);
@@ -73,6 +74,7 @@ export const getTripleMeta = async (
       return [
         groupingName,
         {
+          endpoint,
           triplePatterns: groupingTriplePatterns,
           variables: Object.fromEntries(
             variables.map(({ variable, optional }) => {
@@ -101,18 +103,6 @@ export const getTripleMeta = async (
       ];
     })
   );
-};
-
-export const getOptions = async (options: Options): Promise<{ endpoint: string, prefixes: Record<string, string>}> => {
-  const entryContents = await fs.promises.readFile(`${process.cwd()}/${options.entry}`, "utf8");
-  const entryContentsCleaned = entryContents
-    .split("\n")
-    .filter((line) => !line.includes("import"))
-    .join("\n");
-  const spark = `const Spark = (options) => { return { useSpark: {}, ...options } }\n`;
-  const b64moduleData = "data:text/javascript;base64," + btoa(spark + entryContentsCleaned);
-  const entry = await import(b64moduleData);
-  return entry.default;
 };
 
 const getVariablesFromTriplePattern = (triplePattern: string, prefixes: Record<string, string>) => {

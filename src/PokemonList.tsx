@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import Pokemon from "./Pokemon";
-import { useSpark } from "./spark.js";
+import { useSpark } from '@lib/Spark'
 
 export default function PokemonList() {
   const [limit, setLimit] = useState(12);

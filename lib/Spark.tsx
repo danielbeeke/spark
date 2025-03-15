@@ -1,11 +1,6 @@
-import { fragmentTypes, queries, classMeta } from "../spark-generated";
+import { fragmentTypes, queries, classMeta } from "../.spark/generated";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
-
-type SparkOptions = {
-  endpoint: string;
-  prefixes: Record<string, string>;
-};
 
 type QueryOptions = {
   orderBy?: string;
@@ -100,45 +95,41 @@ const createPromise = ({
     .then(processBindings(groupingName));
 };
 
-export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
-  const cachedFetch = CachedFetch();
-  const promises: Map<string, Promise<any>> = new Map();
+const cachedFetch = CachedFetch();
+const promises: Map<string, Promise<any>> = new Map();
 
-  return {
-    endpoint,
-    prefixes,
-    useSpark: <T extends keyof fragmentTypes>(triplePatternOrGroupingName: T, queryOptions?: QueryOptions) => {
-      const getPromise = (): Promise<fragmentTypes[T][]> => {
-        const groupingName = (triplePatternOrGroupingName.includes(' ') ?
-        triplePatternOrGroupingName.trim()
-          .split(" ")[0]
-          .substring(1) : triplePatternOrGroupingName) as keyof typeof queries;
+export const useSpark = <T extends keyof fragmentTypes>(triplePatternOrGroupingName: T, queryOptions?: QueryOptions) => {
+  const getPromise = (): Promise<fragmentTypes[T][]> => {
+    const groupingName = (triplePatternOrGroupingName.includes(' ') ?
+    triplePatternOrGroupingName.trim()
+      .split(" ")[0]
+      .substring(1) : triplePatternOrGroupingName) as keyof typeof queries;
 
-        const cid = groupingName + JSON.stringify(queryOptions);
+    const cid = groupingName + JSON.stringify(queryOptions);
 
-        if (!promises.has(cid)) {
-          const promise = createPromise({
-            cachedFetch,
-            endpoint,
-            queryOptions,
-            groupingName,
-          });
-          promises.set(cid, promise);
-        }
+    if (!promises.has(cid)) {
+      const meta = classMeta[groupingName]
+      if (!meta) throw new Error('Could not find the source information')
+      const promise = createPromise({
+        cachedFetch,
+        endpoint: meta.endpoint,
+        queryOptions,
+        groupingName,
+      });
+      promises.set(cid, promise);
+    }
 
-        return promises.get(cid)!;
-      };
+    return promises.get(cid)!;
+  };
 
-      const returnObject = {
-        get items(): fragmentTypes[T][] {
-          return use(getPromise());
-        },
-        get item(): fragmentTypes[T] {
-          return use(getPromise().then((items) => items[0]));
-        },
-      };
-
-      return returnObject;
+  const returnObject = {
+    get items(): fragmentTypes[T][] {
+      return use(getPromise());
+    },
+    get item(): fragmentTypes[T] {
+      return use(getPromise().then((items) => items[0]));
     },
   };
-};
+
+  return returnObject;
+}
