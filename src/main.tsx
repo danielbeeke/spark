@@ -16,7 +16,7 @@ createRoot(document.getElementById("root")!).render(
           <iframe
             className="youtube-embed"
             style={{ aspectRatio: 16 / 9, width: "100%", border: "1px solid gray" }}
-            src="https://www.youtube.com/embed/RaYiLoclURg?si=lAHdQ_7IAztimKe8"
+            src="https://www.youtube.com/embed/ZNgbQti7tyo?si=l9TbkCBdsuEcjTIz"
             title="YouTube video player"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
