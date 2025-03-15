@@ -1,19 +1,20 @@
 # Spark
 
-An experiment to create decoupled React components driven by SPARQL fragments, which are combined into a single query that is fetched only once.
+An experiment to create decoupled React components driven by SPARQL fragments.
+This approach ensures efficient SPARQL querying while keeping React components modular and declarative.
 
 ## Installation
 
-1. Include `SparkCompiler` in your `vite.config.ts`. This is where you can define prefixes and specify the SPARQL endpoint you want to use.
+- Include `SparkCompiler` in your `vite.config.ts`. This is where you can define prefixes and specify the SPARQL endpoint you want to use. Optionally turn on `discoverDataTypes` to let Spark discover the datatypes via a SPARQL query.
 
 ## Usage
 
 ### Writing Components
 
-- Use `useSpark('$product rdfs:label $label')` to request a predicate (e.g., `rdfs:label`) for a product.
-- After writing this SPARQL fragment, a TypeScript type for `Product` will be generated in `spark-generated.ts`.
+- Use `useSpark('$product rdfs:label $label')` to require a predicate (e.g., `rdfs:label`) for a certain type.
+- After writing this SPARQL fragment, a TypeScript type for `Product` will be generated, which you can use via the type `Spark<'product'>`.
 
-### Property Notation
+### Property Notation inside the Query fragments
 
 - `$label` denotes a singular property.
 - `?label` denotes a plural property.
@@ -22,15 +23,12 @@ An experiment to create decoupled React components driven by SPARQL fragments, w
 
 - The first argument of `useSpark()` represents what you would typically write inside the curly brackets of a `SELECT * WHERE {}` SPARQL query.
 - All SPARQL syntax is supported.
-- The `useSpark()` hook returns an object: `{ items: Item[], item: Item[] }`.
-  - `Item` is a bundled type representing all fragments for a given subject variable.
+- The `useSpark()` hook returns two properties: `{ items: Item[], item: Item[] }`.
+  - `Items` are all the resources fetched
+  - `Item` is the first resource fetched
   - Accessing this variable triggers the fetcher.
   - If the variable is not accessed, the fetch is not executed.
 
-### Component-driven Queries
-
-- React components can locally declare required predicates.
-- The framework ensures a single SPARQL query is assembled for all fragments related to the same subject variable.
 
 ### Additional Options
 
@@ -44,4 +42,3 @@ An experiment to create decoupled React components driven by SPARQL fragments, w
 
 - The subject in the generated TypeScript type is assigned the variable `iri`.
 
-This approach ensures efficient SPARQL querying while keeping React components modular and declarative.
