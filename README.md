@@ -3,6 +3,8 @@
 An experiment to create decoupled React components driven by SPARQL fragments.
 This approach ensures efficient SPARQL querying while keeping React components modular and declarative.
 
+---
+
 ## Installation
 
 - Include `SparkCompiler` in your `vite.config.ts`. This is where you can define prefixes and specify the SPARQL endpoint you want to use. Optionally turn on `discoverDataTypes` to let Spark discover the datatypes via a SPARQL query.
