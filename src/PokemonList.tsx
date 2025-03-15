@@ -33,7 +33,7 @@ export default function PokemonList() {
         </div>
 
         <div className="mb-3">
-          <label htmlFor="diremt-3ction" className="form-label">
+          <label htmlFor="direction" className="form-label">
             Sorting direction
           </label>
 
@@ -99,8 +99,6 @@ function InnerList({
       sparql: filterQuery,
     }
   );
-
-  console.log(pokemons)
 
   return (
     <div

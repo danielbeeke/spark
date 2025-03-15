@@ -130,8 +130,6 @@ export const Spark = ({ endpoint, prefixes }: SparkOptions) => {
       };
 
       const returnObject = {
-        prefixes,
-        endpoint,
         get items(): fragmentTypes[T][] {
           return use(getPromise());
         },
