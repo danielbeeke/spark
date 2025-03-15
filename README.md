@@ -4,8 +4,7 @@ An experiment to create decoupled React components driven by SPARQL fragments, w
 
 ## Installation
 
-1. Include `SparkCompiler` in your `vite.config.ts`.
-2. Create a local Spark instance by following the example in `./src/spark.ts`. This is where you can define prefixes and specify the SPARQL endpoint you want to use.
+1. Include `SparkCompiler` in your `vite.config.ts`. This is where you can define prefixes and specify the SPARQL endpoint you want to use.
 
 ## Usage
 

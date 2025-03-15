@@ -54,7 +54,7 @@ const createClassTypes = (meta: Meta, dataTypes: DataTypes) => {
             plural ? "Array<" : ""
           }${type}${plural ? ">" : ""};`;
         })
-        .join("\n")}\n}`;
+        .join("\n")}\n}\n`;
     })
     .join("\n");
 };
@@ -116,7 +116,7 @@ const createClassQueries = (meta: Meta, prefixes: Record<string, string>) => {
         .split("\n")
         .map((line) => `    ${line}`)
         .join("\n");
-      return `  ${name}:\`\n${indentedQuery}\`,`;
+      return `  ${name}:\`\n${indentedQuery}\`,\n`;
     })
     .join("")}\n}`;
 };

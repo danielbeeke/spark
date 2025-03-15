@@ -5,10 +5,12 @@ export type Pokemon = {
   image: string;
   type: Array<string>;
 }
+
 export type Type = {
   iri: string;
   label: string;
 }
+
 
 export type fragmentTypes = {
   [`
@@ -45,7 +47,8 @@ export const queries = {
     GROUP BY ?pokemon ?label ?sinnohNumber ?image
     #orderBy
     #limit
-    #offset`,  type:`
+    #offset`,
+  type:`
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     SELECT ?type ?label WHERE {
       ?type rdfs:label ?label.
@@ -56,6 +59,7 @@ export const queries = {
     #orderBy
     #limit
     #offset`,
+
 }
 
 export const classMeta = {

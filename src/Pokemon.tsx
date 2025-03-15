@@ -1,9 +1,9 @@
 import { useSpark } from "@lib/Spark.js";
-import type { Pokemon } from "../.spark/generated.js";
+import type { Spark } from "@lib/Spark.js";
 
 import PokemonImage from "./PokemonImage.js";
 
-export default function Pokemon(pokemon: Pokemon) {
+export default function Pokemon(pokemon: Spark<'pokemon'>) {
   useSpark(`
     $pokemon rdfs:label $label .
     optional { $pokemon vocab:sinnohNumber $sinnohNumber }

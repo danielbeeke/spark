@@ -16,12 +16,18 @@ type SparqlResponse = {
   };
 };
 
-const asString = (value: any) => value + ''
+type Prettify<T> = {
+  [K in keyof T]: T[K];
+} & {};
+
+const asString = (value: any) => value + "";
+
+export type Spark<T extends keyof fragmentTypes> = Prettify<fragmentTypes[T]>
 
 const typeFunctions = {
-  'number': parseInt,
-  'string': asString
-}
+  number: parseInt,
+  string: asString,
+};
 
 const processBindings = (groupingName: string) => (sparqlResponse: SparqlResponse) => {
   return sparqlResponse.results.bindings.map((binding) =>
@@ -30,12 +36,13 @@ const processBindings = (groupingName: string) => (sparqlResponse: SparqlRespons
         const variables = classMeta[groupingName as keyof typeof classMeta].variables;
         const { plural, dataTypes } = variables[key as keyof typeof variables];
         const preparedValues = plural ? value.value.split("|||") : [value.value];
-        const mappedValues = preparedValues.map(value => {
+        const mappedValues = preparedValues.map((value) => {
           // For now we just do the first one
-          const typeFunction = typeFunctions[dataTypes[0] as keyof typeof typeFunctions] ?? asString
-          return typeFunction(value)
-        })
-        
+          const typeFunction =
+            typeFunctions[dataTypes[0] as keyof typeof typeFunctions] ?? asString;
+          return typeFunction(value);
+        });
+
         return [key === groupingName ? "iri" : key, plural ? mappedValues : mappedValues[0]];
       })
     )
@@ -70,11 +77,11 @@ const createPromise = ({
 
   const variables = classMeta[groupingName as keyof typeof classMeta].variables;
 
-  // This rewriting is needed because the developer can input a certain variable name and 
+  // This rewriting is needed because the developer can input a certain variable name and
   // expects that name to be used as the output, but under the hood we use a different variable name temporarily.
   if (sparql) {
     for (const [variable, { plural }] of Object.entries(variables)) {
-      if (plural) sparql = sparql.replaceAll(`?${variable}`, `?_${variable}`)
+      if (plural) sparql = sparql.replaceAll(`?${variable}`, `?_${variable}`);
     }
   }
 
@@ -98,18 +105,22 @@ const createPromise = ({
 const cachedFetch = CachedFetch();
 const promises: Map<string, Promise<any>> = new Map();
 
-export const useSpark = <T extends keyof fragmentTypes>(triplePatternOrGroupingName: T, queryOptions?: QueryOptions) => {
+export const useSpark = <T extends keyof fragmentTypes>(
+  triplePatternOrGroupingName: T,
+  queryOptions?: QueryOptions
+) => {
   const getPromise = (): Promise<fragmentTypes[T][]> => {
-    const groupingName = (triplePatternOrGroupingName.includes(' ') ?
-    triplePatternOrGroupingName.trim()
-      .split(" ")[0]
-      .substring(1) : triplePatternOrGroupingName) as keyof typeof queries;
+    const groupingName = (
+      triplePatternOrGroupingName.includes(" ")
+        ? triplePatternOrGroupingName.trim().split(" ")[0].substring(1)
+        : triplePatternOrGroupingName
+    ) as keyof typeof queries;
 
     const cid = groupingName + JSON.stringify(queryOptions);
 
     if (!promises.has(cid)) {
-      const meta = classMeta[groupingName]
-      if (!meta) throw new Error('Could not find the source information')
+      const meta = classMeta[groupingName];
+      if (!meta) throw new Error("Could not find the source information");
       const promise = createPromise({
         cachedFetch,
         endpoint: meta.endpoint,
@@ -123,13 +134,13 @@ export const useSpark = <T extends keyof fragmentTypes>(triplePatternOrGroupingN
   };
 
   const returnObject = {
-    get items(): fragmentTypes[T][] {
+    get items(): Prettify<fragmentTypes[T]>[] {
       return use(getPromise());
     },
-    get item(): fragmentTypes[T] {
+    get item(): Prettify<fragmentTypes[T]> {
       return use(getPromise().then((items) => items[0]));
     },
   };
 
   return returnObject;
-}
+};
