@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { fragmentTypes, queries, classMeta } from "../.spark/generated";
 import { CachedFetch } from "./CachedFetch";
 import { use } from "react";
@@ -20,7 +21,7 @@ type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-const asString = (value: any) => value + "";
+const asString = (value: unknown) => value + "";
 
 export type Spark<T extends keyof fragmentTypes> = Prettify<fragmentTypes[T]>
 
@@ -63,13 +64,14 @@ const createPromise = ({
   if (!(groupingName in queries)) throw new Error("Could not find the query");
 
   let query = queries[groupingName];
-  let {
+  const {
     orderBy = `$${groupingName}`,
     orderDirection = "asc",
     limit,
     offset,
-    sparql,
   } = queryOptions ?? {};
+
+  let sparql = queryOptions?.sparql ?? ''
 
   query = query.replace("#orderBy", orderBy ? `order by ${orderDirection}(${orderBy})` : "");
   query = query.replace("#limit", limit !== undefined ? `limit ${limit}` : "");
@@ -103,13 +105,15 @@ const createPromise = ({
 };
 
 const cachedFetch = CachedFetch();
-const promises: Map<string, Promise<any>> = new Map();
+const promises: Map<string, Promise<unknown>> = new Map();
 
-export const useSpark = <T extends keyof fragmentTypes>(
+type GetFragmentType<T> = T extends keyof fragmentTypes ? fragmentTypes[T] : unknown
+
+export const useSpark = <const T extends string>(
   triplePatternOrGroupingName: T,
   queryOptions?: QueryOptions
 ) => {
-  const getPromise = (): Promise<fragmentTypes[T][]> => {
+  const getPromise = (): Promise<GetFragmentType<T>[]> => {
     const groupingName = (
       triplePatternOrGroupingName.includes(" ")
         ? triplePatternOrGroupingName.trim().split(" ")[0].substring(1)
@@ -130,17 +134,15 @@ export const useSpark = <T extends keyof fragmentTypes>(
       promises.set(cid, promise);
     }
 
-    return promises.get(cid)!;
+    return promises.get(cid)! as Promise<GetFragmentType<T>[]>;
   };
 
-  const returnObject = {
-    get items(): Prettify<fragmentTypes[T]>[] {
+  return {
+    get items(): Prettify<GetFragmentType<T>>[] {
       return use(getPromise());
     },
-    get item(): Prettify<fragmentTypes[T]> {
+    get item(): Prettify<GetFragmentType<T>> {
       return use(getPromise().then((items) => items[0]));
     },
   };
-
-  return returnObject;
 };
