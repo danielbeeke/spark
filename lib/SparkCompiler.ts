@@ -135,8 +135,7 @@ const getDataTypes = async (meta: Meta, prefixes: Record<string, string>, endpoi
   const allDataTypes: Record<string, Record<string, string[]>> = {};
   for (const [groupingName, classData] of Object.entries(meta)) {
     const fragmentWheres = classData.triplePatterns.flatMap((triplePattern) => {
-      let triplePatternRewritten = triplePattern;
-      const finalQuery = `${prefixesString} select * where { ${triplePatternRewritten} }`;
+      const finalQuery = `${prefixesString} select * where { ${triplePattern} }`;
       const parsedQuery = parser.parse(finalQuery) as SelectQuery;
       return parsedQuery.where;
     });

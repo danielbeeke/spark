@@ -23,7 +23,7 @@ type Prettify<T> = {
 
 const asString = (value: unknown) => value + "";
 
-export type Spark<T extends keyof fragmentTypes> = Prettify<fragmentTypes[T]>
+export type Spark<T extends string> = Prettify<GetFragmentType<T>>
 
 const typeFunctions = {
   number: parseInt,
