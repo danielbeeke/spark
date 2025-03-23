@@ -224,7 +224,7 @@ export default function SparkCompiler({ sources }: Options) {
     },
 
     async handleHotUpdate({ file }: { file: string }) {
-      if (file.includes("generated")) return;
+      if (file.includes("spark/generated.ts")) return;
 
       for (const source of Object.values(sources)) {
         await sparkGenerate(source);

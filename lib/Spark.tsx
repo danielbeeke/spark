@@ -44,7 +44,7 @@ const processBindings = (groupingName: string) => (sparqlResponse: SparqlRespons
           return typeFunction(value);
         });
 
-        return [key === groupingName ? "iri" : key, plural ? mappedValues : mappedValues[0]];
+        return [key === groupingName ? "iri" : key, plural ? [...new Set(mappedValues)] : mappedValues[0]];
       })
     )
   );
@@ -110,14 +110,14 @@ const promises: Map<string, Promise<unknown>> = new Map();
 type GetFragmentType<T> = T extends keyof fragmentTypes ? fragmentTypes[T] : unknown
 
 export const useSpark = <const T extends string>(
-  triplePatternOrGroupingName: T,
+  sparqlFragment: T,
   queryOptions?: QueryOptions
 ) => {
   const getPromise = (): Promise<GetFragmentType<T>[]> => {
     const groupingName = (
-      triplePatternOrGroupingName.includes(" ")
-        ? triplePatternOrGroupingName.trim().split(" ")[0].substring(1)
-        : triplePatternOrGroupingName
+      sparqlFragment.includes(" ")
+        ? sparqlFragment.trim().split(" ")[0].substring(1)
+        : sparqlFragment
     ) as keyof typeof queries;
 
     const cid = groupingName + JSON.stringify(queryOptions);

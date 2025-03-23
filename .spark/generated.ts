@@ -2,6 +2,7 @@ export type Pokemon = {
   iri: string;
   label: string;
   sinnohNumber?: number;
+  description: Array<string>;
   image: string;
   type: Array<string>;
 }
@@ -16,6 +17,7 @@ export type fragmentTypes = {
   [`
     $pokemon rdfs:label $label .
     optional { $pokemon vocab:sinnohNumber $sinnohNumber }
+    $pokemon vocab:description ?description .
   `]: Pokemon;
   [`$pokemon foaf:depiction $image`]: Pokemon;
   [`
@@ -36,9 +38,10 @@ export const queries = {
     PREFIX vocab: <https://triplydb.com/academy/pokemon/vocab/>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-    SELECT ?pokemon ?label ?sinnohNumber ?image (GROUP_CONCAT(?_type; SEPARATOR = "|||") AS ?type) WHERE {
+    SELECT ?pokemon ?label ?sinnohNumber (GROUP_CONCAT(?_description; SEPARATOR = "|||") AS ?description) ?image (GROUP_CONCAT(?_type; SEPARATOR = "|||") AS ?type) WHERE {
       ?pokemon rdfs:label ?label.
       OPTIONAL { ?pokemon vocab:sinnohNumber ?sinnohNumber. }
+      ?pokemon vocab:description ?_description.
       ?pokemon foaf:depiction ?image.
       ?pokemon rdf:type <https://triplydb.com/academy/pokemon/vocab/Pokémon>;
         vocab:type ?_type.
@@ -66,7 +69,7 @@ export const classMeta = {
   "pokemon": {
     "endpoint": "https://api.triplydb.com/datasets/academy/pokemon/services/jena/sparql",
     "triplePatterns": [
-      "\n    $pokemon rdfs:label $label .\n    optional { $pokemon vocab:sinnohNumber $sinnohNumber }\n  ",
+      "\n    $pokemon rdfs:label $label .\n    optional { $pokemon vocab:sinnohNumber $sinnohNumber }\n    $pokemon vocab:description ?description .\n  ",
       "$pokemon foaf:depiction $image",
       "\n      $pokemon rdf:type vocab:Pokémon .\n      $pokemon vocab:type ?type .\n    "
     ],
@@ -88,6 +91,13 @@ export const classMeta = {
         "optional": true,
         "dataTypes": [
           "number"
+        ]
+      },
+      "description": {
+        "plural": true,
+        "optional": false,
+        "dataTypes": [
+          "string"
         ]
       },
       "image": {

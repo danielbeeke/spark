@@ -7,6 +7,7 @@ export default function Pokemon(pokemon: Spark<'pokemon'>) {
   useSpark(`
     $pokemon rdfs:label $label .
     optional { $pokemon vocab:sinnohNumber $sinnohNumber }
+    $pokemon vocab:description ?description .
   `);
 
   return (

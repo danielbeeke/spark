@@ -44,3 +44,14 @@ This approach ensures efficient SPARQL querying while keeping React components m
 
 - The subject in the generated TypeScript type is assigned the variable `iri`.
 
+## TODO
+
+[ ] Add caching for the dataTypes query
+[ ] Support multiple sources
+[ ] Support for multilingual text handling
+    - Could be achieved via dynamic Sparql that according to the data types add a filter
+    - Would not deal with multiple objects with the same language.
+    - Could work with $ but still receives multiple bindings.
+[ ] Improve the handling of optional
+[ ] More support for type casting, such as xsd:date to Date.
+[ ] Support nested objects similar to sparqljson-to-tree.js
