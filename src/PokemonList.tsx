@@ -111,3 +111,10 @@ function InnerList({
     </div>
   );
 }
+
+
+function test <const T extends TemplateStringsArray>(templates: T, ...holes: any) {
+  return {} as unknown as T[0]
+}
+
+const a  = test`Lorem`

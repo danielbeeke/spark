@@ -80,7 +80,8 @@ const createPromise = ({
   const variables = classMeta[groupingName as keyof typeof classMeta].variables;
 
   // This rewriting is needed because the developer can input a certain variable name and
-  // expects that name to be used as the output, but under the hood we use a different variable name temporarily.
+  // expects that name to be used as the output, but under the hood we use a different variable name temporarily because of the grouping.
+  // TODO the rewriting could also be done at the end.
   if (sparql) {
     for (const [variable, { plural }] of Object.entries(variables)) {
       if (plural) sparql = sparql.replaceAll(`?${variable}`, `?_${variable}`);
